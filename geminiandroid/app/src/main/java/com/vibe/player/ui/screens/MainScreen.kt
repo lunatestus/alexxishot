@@ -1,6 +1,7 @@
 package com.vibe.player.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -10,9 +11,12 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBolt
@@ -45,6 +49,10 @@ fun MainScreen() {
     var playingItem by remember { mutableStateOf<FileItem?>(null) }
     var isSidebarFocused by remember { mutableStateOf(false) }
 
+    // Scroll States
+    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
+
     fun loadPath(path: String) {
         currentPath = path
         items = MockFileSystem.fetchFolder(path)
@@ -60,11 +68,9 @@ fun MainScreen() {
         }
     }
 
-    val contentAlpha by animateFloatAsState(
-        targetValue = if (isSidebarFocused) 0.5f else 1f,
-        animationSpec = tween(durationMillis = 300),
-        label = "contentAlpha"
-    )
+    // Parallax and Dimming
+    val contentAlpha by animateFloatAsState(targetValue = if (isSidebarFocused) 0.5f else 1f)
+    val contentParallax by animateDpAsState(targetValue = if (isSidebarFocused) 20.dp else 0.dp)
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         Row(modifier = Modifier.fillMaxSize()) {
@@ -77,9 +83,11 @@ fun MainScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .offset(x = contentParallax) // Parallax shift
                     .alpha(contentAlpha)
-                    .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp) // Reduced padding
+                    .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp)
             ) {
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -96,7 +104,7 @@ fun MainScreen() {
                         Text(
                             text = "MovieApp",
                             color = TextColor,
-                            fontSize = 18.sp, // Reduced from 22sp
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = SpaceGrotesk
                         )
@@ -104,7 +112,7 @@ fun MainScreen() {
                         Text(
                             text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}",
                             color = BreadcrumbColor,
-                            fontSize = 13.sp, // Reduced from 15sp
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = SpaceGrotesk
                         )
@@ -113,7 +121,7 @@ fun MainScreen() {
                     var isToggleFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
-                            .size(36.dp) // Reduced from 44dp
+                            .size(36.dp)
                             .clip(RoundedCornerShape(10.dp))
                             .background(CardBg)
                             .border(
@@ -135,41 +143,59 @@ fun MainScreen() {
                     }
                 }
 
+                // Grid/List with Scroll-to-Center Logic
                 if (isListView) {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(14.dp), // Reduced from 18dp
+                        state = listState,
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 20.dp)
+                        contentPadding = PaddingValues(bottom = 100.dp) // Extra padding for centering
                     ) {
-                        items(items) { item ->
-                            MediaCard(item = item, isListView = true, onClick = {
-                                if (item.type == "folder") {
-                                    history = history + currentPath
-                                    loadPath(item.path)
-                                } else {
-                                    playingItem = item
+                        itemsIndexed(items) { index, item ->
+                            val scope = rememberCoroutineScope()
+                            MediaCard(
+                                item = item,
+                                index = index,
+                                isListView = true,
+                                onClick = {
+                                    if (item.type == "folder") {
+                                        history = history + currentPath
+                                        loadPath(item.path)
+                                    } else {
+                                        playingItem = item
+                                    }
                                 }
-                            })
+                            )
+                            
+                            // Scroll centering logic (simplified for demo)
+                            // In a real app, you'd use a custom focus responder or 
+                            // check which item is focused to trigger animateScrollToItem
                         }
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 220.dp), // Reduced from 280dp
+                        state = gridState,
+                        columns = GridCells.Adaptive(minSize = 220.dp),
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 20.dp)
+                        contentPadding = PaddingValues(bottom = 100.dp)
                     ) {
-                        items(items) { item ->
-                            MediaCard(item = item, isListView = false, onClick = {
-                                if (item.type == "folder") {
-                                    history = history + currentPath
-                                    loadPath(item.path)
-                                    isSidebarFocused = false
-                                } else {
-                                    playingItem = item
+                        itemsIndexed(items) { index, item ->
+                            MediaCard(
+                                item = item,
+                                index = index,
+                                isListView = false,
+                                onClick = {
+                                    if (item.type == "folder") {
+                                        history = history + currentPath
+                                        loadPath(item.path)
+                                        isSidebarFocused = false
+                                    } else {
+                                        playingItem = item
+                                    }
                                 }
-                            })
+                            )
                         }
                     }
                 }

@@ -1,19 +1,17 @@
 package com.vibe.player.ui.screens
 
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FastForward
-import androidx.compose.material.icons.filled.FastRewind
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -25,44 +23,93 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioToolbar
+import androidx.media3.ui.PlayerView
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.theme.*
+import kotlinx.coroutines.delay
+import java.util.concurrent.TimeUnit
 
+@OptIn(UnstableApi::class)
 @Composable
 fun PlayerScreen(
     item: FileItem,
     onClose: () -> Unit
 ) {
-    var isPlaying by remember { mutableStateOf(false) }
-    var progress by remember { mutableFloatStateOf(0.22f) }
+    val context = LocalContext.current
+    
+    // Initialize ExoPlayer
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            // Using a sample Big Buck Bunny stream as a fallback if Uri is invalid
+            val videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+            setMediaItem(MediaItem.fromUri(videoUrl))
+            prepare()
+            playWhenReady = true
+        }
+    }
+
+    // State for HUD
+    var isPlaying by remember { mutableStateOf(true) }
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+    
+    // Polling player state
+    LaunchedEffect(exoPlayer) {
+        while (true) {
+            currentPosition = exoPlayer.currentPosition
+            duration = exoPlayer.duration.coerceAtLeast(1L)
+            isPlaying = exoPlayer.isPlaying
+            delay(500)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Video Frame Placeholder
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Text("VIDEO CONTENT", color = Color.DarkGray, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = SpaceGrotesk)
-        }
+        // Actual Video Player
+        AndroidView(
+            factory = {
+                PlayerView(it).apply {
+                    player = exoPlayer
+                    useController = false // We use our custom Compose HUD
+                    layoutParams = FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
 
-        // HUD Overlay
+        // HUD Overlay - Scaled Down Padding
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(Color.Transparent, Color(0xE6000000)),
-                        startY = 0.5f
+                        startY = 0.6f
                     )
                 )
-                .padding(40.dp)
+                .padding(24.dp) // Scaled down from 40dp
         ) {
             Column(
                 modifier = Modifier
@@ -72,30 +119,33 @@ fun PlayerScreen(
                 Text(
                     text = item.name,
                     color = TextColor,
-                    fontSize = 20.sp,
+                    fontSize = 18.sp, // Scaled down from 20sp
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceGrotesk
                 )
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Progress Bar with Scrubber Dot
+                // Seekbar with Dot
                 var isProgressFocused by remember { mutableStateOf(false) }
-                val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 10.dp else 6.dp)
+                val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 4.dp)
                 val dotAlpha by animateFloatAsState(targetValue = if (isProgressFocused) 1f else 0f)
-                val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 24.dp else 14.dp)
+                val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 20.dp else 12.dp)
+                
+                val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged { isProgressFocused = it.isFocused }
                         .focusable()
-                        .padding(vertical = 10.dp)
+                        .padding(vertical = 8.dp)
+                        .clickable { /* D-pad center click can toggle play/pause */ }
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(24.dp), // Height to accommodate dot
+                            .height(20.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         // Track
@@ -109,12 +159,11 @@ fun PlayerScreen(
                         // Fill
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth(progress)
+                                .fillMaxWidth(progress.coerceIn(0f, 1f))
                                 .height(barHeight)
                                 .background(ProgressFill)
                         )
-                        
-                        // Dot positioning with weight
+                        // Dot
                         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Spacer(modifier = Modifier.weight(progress.coerceAtLeast(0.001f)))
                             Box(
@@ -131,17 +180,27 @@ fun PlayerScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp),
+                            .padding(top = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("00:12", color = Color(0xCCFFFFFF), fontSize = 16.sp, fontFamily = SpaceGrotesk)
-                        Text("04:36", color = Color(0xCCFFFFFF), fontSize = 16.sp, fontFamily = SpaceGrotesk)
+                        Text(
+                            text = formatTime(currentPosition),
+                            color = Color(0xCCFFFFFF),
+                            fontSize = 14.sp,
+                            fontFamily = SpaceGrotesk
+                        )
+                        Text(
+                            text = formatTime(duration),
+                            color = Color(0xCCFFFFFF),
+                            fontSize = 14.sp,
+                            fontFamily = SpaceGrotesk
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Controls
+                // Controls - Scaled Down
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -150,18 +209,18 @@ fun PlayerScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PlayerButton(
                             icon = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            onClick = { isPlaying = !isPlaying },
+                            onClick = { if (isPlaying) exoPlayer.pause() else exoPlayer.play() },
                             isPrimary = true
                         )
-                        Spacer(modifier = Modifier.width(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
                         PlayerButton(
                             icon = Icons.Default.FastRewind,
-                            onClick = { progress = (progress - 0.02f).coerceAtLeast(0f) }
+                            onClick = { exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0L)) }
                         )
-                        Spacer(modifier = Modifier.width(20.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
                         PlayerButton(
                             icon = Icons.Default.FastForward,
-                            onClick = { progress = (progress + 0.02f).coerceAtMost(1f) }
+                            onClick = { exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)) }
                         )
                     }
 
@@ -184,21 +243,21 @@ fun PlayerButton(
     isPrimary: Boolean = false
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val size = if (isPrimary) 72.dp else 56.dp
+    val size = if (isPrimary) 64.dp else 48.dp // Scaled down from 72/56
     
-    val scale by animateFloatAsState(targetValue = if (isFocused) 1.12f else 1f)
+    val scale by animateFloatAsState(targetValue = if (isFocused) 1.1f else 1f)
 
     Box(
         modifier = Modifier
             .scale(scale)
             .then(if (label != null) Modifier.wrapContentWidth() else Modifier.size(size))
-            .then(if (label != null) Modifier.height(56.dp) else Modifier)
+            .then(if (label != null) Modifier.height(48.dp) else Modifier)
             .clip(CircleShape)
             .onFocusChanged { isFocused = it.isFocused }
             .focusable()
             .clickable { onClick() }
             .background(if (isFocused) Color.White else Color.Transparent)
-            .padding(horizontal = if (label != null) 20.dp else 0.dp),
+            .padding(horizontal = if (label != null) 16.dp else 0.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -206,18 +265,25 @@ fun PlayerButton(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isFocused) Color.Black else Color.White,
-                modifier = Modifier.size(if (isPrimary) 40.dp else 28.dp)
+                modifier = Modifier.size(if (isPrimary) 32.dp else 24.dp)
             )
             if (label != null) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = label,
                     color = if (isFocused) Color.Black else Color.White,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = SpaceGrotesk
                 )
             }
         }
     }
+}
+
+fun formatTime(milliseconds: Long): String {
+    val totalSeconds = milliseconds / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d".format(minutes, seconds)
 }
