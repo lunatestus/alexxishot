@@ -111,7 +111,8 @@ fun MainScreen() {
     }
 
     val contentAlpha by animateFloatAsState(targetValue = if (isSidebarFocused) 0.5f else 1f, animationSpec = tween(200))
-    val contentTranslation by animateFloatAsState(targetValue = if (isSidebarFocused) 72f else 0f, animationSpec = tween(200))
+    // Expanded width (180) - Collapsed width (56) = 124 shift
+    val contentTranslation by animateFloatAsState(targetValue = if (isSidebarFocused) 124f else 0f, animationSpec = tween(200))
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         // Content Area
@@ -123,7 +124,7 @@ fun MainScreen() {
                     translationX = contentTranslation
                     alpha = contentAlpha
                 }
-                .padding(top = 16.dp, start = 16.dp, bottom = 16.dp, end = 24.dp)
+                .padding(top = 24.dp, start = 24.dp, bottom = 16.dp, end = 24.dp)
         ) {
             // Header
             Row(
@@ -139,7 +140,7 @@ fun MainScreen() {
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(CardBg)
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = "/ ${currentPath.removePrefix("/")}",

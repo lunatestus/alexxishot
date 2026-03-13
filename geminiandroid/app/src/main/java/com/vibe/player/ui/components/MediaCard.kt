@@ -76,7 +76,7 @@ fun MediaCard(
                     modifier = Modifier
                         .width(100.dp)
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(6.dp))
                         .background(Color(0xFF0044CC)),
                     contentAlignment = Alignment.Center
                 ) {
