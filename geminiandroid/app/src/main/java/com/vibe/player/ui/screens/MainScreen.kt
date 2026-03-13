@@ -1,12 +1,5 @@
 package com.vibe.player.ui.screens
 
-import android.app.DownloadManager
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -44,7 +37,6 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -52,7 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
-import com.vibe.player.data.UpdateManager
 import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
@@ -61,7 +52,6 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen() {
-    val context = LocalContext.current
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
@@ -71,10 +61,6 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
-    var updateDownloadId by remember { mutableStateOf<Long?>(null) }
-    var updateInProgress by remember { mutableStateOf(false) }
-
-    val updateUrl = "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk"
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -108,35 +94,6 @@ fun MainScreen() {
         }
     }
 
-    DisposableEffect(updateDownloadId) {
-        if (updateDownloadId == null) return@DisposableEffect onDispose {}
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
-                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
-                if (id == updateDownloadId) {
-                    when (val result = UpdateManager.handleDownloadComplete(context, id)) {
-                        is UpdateManager.CompleteResult.StartedInstall -> {
-                            updateInProgress = false
-                            Toast.makeText(context, "Update downloaded. Installing…", Toast.LENGTH_SHORT).show()
-                        }
-                        is UpdateManager.CompleteResult.Error -> {
-                            updateInProgress = false
-                            Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                    updateDownloadId = null
-                }
-            }
-        }
-        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            context.registerReceiver(receiver, filter)
-        }
-        onDispose { context.unregisterReceiver(receiver) }
-    }
 
     BackHandler(enabled = history.isNotEmpty() || playingItem != null) {
         if (playingItem != null) {
@@ -178,46 +135,25 @@ fun MainScreen() {
                 }
 
                 var isToggleFocused by remember { mutableStateOf(false) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (updateInProgress) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 12.dp)
-                        ) {
-                            CircularProgressIndicator(
-                                color = TextColor,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Updating…",
-                                color = BreadcrumbColor,
-                                fontSize = 12.sp,
-                                fontFamily = DmSans
-                            )
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(CardBg)
+                        .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
+                        .focusProperties {
+                            down = if (items.isNotEmpty()) firstItemFocusRequester else FocusRequester.Default
+                            left = FocusRequester.Default
                         }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(CardBg)
-                            .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
-                            .focusProperties {
-                                down = if (items.isNotEmpty()) firstItemFocusRequester else FocusRequester.Default
-                                left = FocusRequester.Default
-                            }
-                            .onFocusChanged { isToggleFocused = it.isFocused }
-                            .focusable()
-                            .clickable { 
-                                isListView = !isListView
-                                shouldRequestContentFocus = true
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
-                    }
+                        .onFocusChanged { isToggleFocused = it.isFocused }
+                        .focusable()
+                        .clickable { 
+                            isListView = !isListView
+                            shouldRequestContentFocus = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -288,21 +224,6 @@ fun MainScreen() {
             onNavClick = { id ->
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
-                } else if (id == "update") {
-                    if (updateDownloadId != null || updateInProgress) {
-                        Toast.makeText(context, "Update already downloading", Toast.LENGTH_SHORT).show()
-                    } else {
-                        when (val result = UpdateManager.startUpdateDownload(context, updateUrl)) {
-                            is UpdateManager.StartResult.Started -> {
-                                updateDownloadId = result.id
-                                updateInProgress = true
-                                Toast.makeText(context, "Downloading update…", Toast.LENGTH_SHORT).show()
-                            }
-                            is UpdateManager.StartResult.Error -> {
-                                Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
                 }
             }
         )

@@ -4,12 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.SystemUpdate
-import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -44,7 +38,6 @@ fun Sidebar(
         NavItem("Home", "home", PlayerIcons.Home),
         NavItem("Movies", "movies", PlayerIcons.Movies),
         NavItem("TV Shows", "tv", PlayerIcons.Tv),
-        NavItem("Update", "update", PlayerIcons.Update),
         NavItem("Settings", "settings", PlayerIcons.Settings)
     )
 
