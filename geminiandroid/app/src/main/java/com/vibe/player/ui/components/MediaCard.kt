@@ -50,7 +50,6 @@ fun MediaCard(
         .zIndex(if (isFocused) 1f else 0f)
         .scale(scale)
         .onFocusChanged { isFocused = it.isFocused }
-        .focusable()
         .clickable { onClick() }
         .clip(RoundedCornerShape(10.dp))
         .border(

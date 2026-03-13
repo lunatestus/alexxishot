@@ -1,6 +1,5 @@
 package com.vibe.player.ui.components
 
-import android.view.KeyEvent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +20,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -34,7 +32,6 @@ fun Sidebar(
     isExpanded: Boolean,
     focusRequester: FocusRequester,
     onFocusChange: (Boolean) -> Unit,
-    onRequestContentFocus: () -> Unit,
     onNavClick: (String) -> Unit
 ) {
     val navItems = listOf(
@@ -92,15 +89,6 @@ fun Sidebar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged { isFocused = it.isFocused }
-                        .onKeyEvent { keyEvent ->
-                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                                if (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
-                                    onRequestContentFocus()
-                                    true
-                                } else false
-                            } else false
-                        }
-                        .focusable()
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
                         .padding(horizontal = if (isExpanded) 20.dp else 16.dp, vertical = 12.dp),

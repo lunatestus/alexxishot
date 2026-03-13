@@ -1,6 +1,5 @@
 package com.vibe.player.ui.screens
 
-import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -37,7 +36,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -67,7 +65,6 @@ fun MainScreen() {
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
-    val contentFocusRequester = remember { FocusRequester() }
 
     fun loadPath(path: String) {
         currentPath = path
@@ -106,14 +103,6 @@ fun MainScreen() {
                 .offset(x = contentParallax)
                 .alpha(contentAlpha)
                 .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp)
-                .onKeyEvent { keyEvent ->
-                    if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                        if (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
-                            sidebarFocusRequester.requestFocus()
-                            true
-                        } else false
-                    } else false
-                }
         ) {
             // Header
             Row(
@@ -137,9 +126,7 @@ fun MainScreen() {
                         .background(CardBg)
                         .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
                         .onFocusChanged { isToggleFocused = it.isFocused }
-                        .focusable()
-                        .clickable { isListView = !isListView }
-                        .focusRequester(contentFocusRequester),
+                        .clickable { isListView = !isListView },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
@@ -193,7 +180,6 @@ fun MainScreen() {
             isExpanded = isSidebarFocused,
             focusRequester = sidebarFocusRequester,
             onFocusChange = { isSidebarFocused = it },
-            onRequestContentFocus = { contentFocusRequester.requestFocus() },
             onNavClick = { id ->
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
