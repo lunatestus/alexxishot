@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.theme.*
 
@@ -32,9 +33,8 @@ fun MediaCard(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     
-    // Animations for scale and border
     val scale by animateFloatAsState(
-        targetValue = if (isFocused && !isListView) 1.06f else 1f,
+        targetValue = if (isFocused && !isListView) 1.05f else 1f,
         animationSpec = tween(durationMillis = 200),
         label = "scale"
     )
@@ -46,31 +46,32 @@ fun MediaCard(
     )
 
     val modifier = Modifier
+        .zIndex(if (isFocused) 1f else 0f) // Keep focused item on top
         .scale(scale)
         .onFocusChanged { isFocused = it.isFocused }
         .focusable()
         .clickable { onClick() }
-        .clip(RoundedCornerShape(12.dp))
+        .clip(RoundedCornerShape(10.dp)) // Slightly smaller radius for smaller scale
         .border(
-            width = if (isFocused) 3.dp else 0.dp,
+            width = if (isFocused) 2.dp else 0.dp, // Thinner border for smaller UI
             color = borderColor,
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(10.dp)
         )
 
     if (isListView) {
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .height(96.dp)
+                .height(80.dp) // Reduced from 96dp
                 .background(CardBg)
-                .padding(12.dp, 16.dp),
+                .padding(10.dp, 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .width(160.dp)
+                    .width(120.dp) // Reduced from 160dp
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFF0044CC)),
                 contentAlignment = Alignment.Center
             ) {
@@ -78,27 +79,27 @@ fun MediaCard(
                     text = "Vibe",
                     color = Color(0x33FFFFFF),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontFamily = SpaceGrotesk
                 )
             }
             Column(
                 modifier = Modifier
-                    .padding(start = 16.dp)
+                    .padding(start = 14.dp)
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = item.name,
                     color = TextColor,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp, // Reduced from 18sp
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = SpaceGrotesk
                 )
                 Text(
                     text = item.type.uppercase(),
                     color = Color(0xFFAAAAAA),
-                    fontSize = 14.sp,
+                    fontSize = 12.sp, // Reduced from 14sp
                     fontFamily = SpaceGrotesk
                 )
             }
@@ -119,7 +120,7 @@ fun MediaCard(
                     text = "Vibe",
                     color = Color(0x33FFFFFF),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 32.sp,
+                    fontSize = 28.sp, // Reduced from 32sp
                     fontFamily = SpaceGrotesk
                 )
             }
@@ -136,12 +137,12 @@ fun MediaCard(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(15.dp)
+                    .padding(12.dp)
             ) {
                 Text(
                     text = item.name,
                     color = TextColor,
-                    fontSize = 17.sp,
+                    fontSize = 15.sp, // Reduced from 17sp
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     fontFamily = SpaceGrotesk
@@ -149,7 +150,7 @@ fun MediaCard(
                 Text(
                     text = item.type.uppercase(),
                     color = Color(0xFFAAAAAA),
-                    fontSize = 12.sp,
+                    fontSize = 11.sp, // Reduced from 12sp
                     fontFamily = SpaceGrotesk
                 )
             }

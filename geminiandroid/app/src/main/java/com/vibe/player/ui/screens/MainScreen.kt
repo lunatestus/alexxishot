@@ -60,7 +60,6 @@ fun MainScreen() {
         }
     }
 
-    // Dimming animation for content
     val contentAlpha by animateFloatAsState(
         targetValue = if (isSidebarFocused) 0.5f else 1f,
         animationSpec = tween(durationMillis = 300),
@@ -69,63 +68,58 @@ fun MainScreen() {
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         Row(modifier = Modifier.fillMaxSize()) {
-            // Sidebar
             Sidebar(
                 isExpanded = isSidebarFocused,
                 onFocusChange = { isSidebarFocused = it },
                 onNavClick = { /* Handle nav */ }
             )
 
-            // Content
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .alpha(contentAlpha) // Apply dimming
-                    .padding(top = 40.dp, start = 40.dp, bottom = 40.dp, end = 70.dp) // Match CSS: 40px 70px 40px 40px
+                    .alpha(contentAlpha)
+                    .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp) // Reduced padding
             ) {
-                // Header
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Brand Icon (Lightning Bolt)
                         Icon(
                             imageVector = Icons.Default.ElectricBolt,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "MovieApp",
                             color = TextColor,
-                            fontSize = 22.sp,
+                            fontSize = 18.sp, // Reduced from 22sp
                             fontWeight = FontWeight.Bold,
                             fontFamily = SpaceGrotesk
                         )
-                        Spacer(modifier = Modifier.width(18.dp))
+                        Spacer(modifier = Modifier.width(14.dp))
                         Text(
                             text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}",
                             color = BreadcrumbColor,
-                            fontSize = 15.sp,
+                            fontSize = 13.sp, // Reduced from 15sp
                             fontWeight = FontWeight.Medium,
                             fontFamily = SpaceGrotesk
                         )
                     }
 
-                    // View Toggle
                     var isToggleFocused by remember { mutableStateOf(false) }
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
+                            .size(36.dp) // Reduced from 44dp
+                            .clip(RoundedCornerShape(10.dp))
                             .background(CardBg)
                             .border(
-                                width = if (isToggleFocused) 3.dp else 2.dp,
+                                width = if (isToggleFocused) 2.dp else 1.dp,
                                 color = if (isToggleFocused) AccentColor else ViewToggleBorder,
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(10.dp)
                             )
                             .onFocusChanged { isToggleFocused = it.isFocused }
                             .focusable()
@@ -136,16 +130,16 @@ fun MainScreen() {
                             imageVector = if (isListView) Icons.Default.GridView else Icons.Default.List,
                             contentDescription = "Toggle View",
                             tint = TextColor,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                // Grid/List
                 if (isListView) {
                     LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
-                        modifier = Modifier.fillMaxSize()
+                        verticalArrangement = Arrangement.spacedBy(14.dp), // Reduced from 18dp
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
                         items(items) { item ->
                             MediaCard(item = item, isListView = true, onClick = {
@@ -160,17 +154,17 @@ fun MainScreen() {
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 280.dp),
-                        horizontalArrangement = Arrangement.spacedBy(30.dp),
-                        verticalArrangement = Arrangement.spacedBy(30.dp),
-                        modifier = Modifier.fillMaxSize()
+                        columns = GridCells.Adaptive(minSize = 220.dp), // Reduced from 280dp
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(24.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 20.dp)
                     ) {
                         items(items) { item ->
                             MediaCard(item = item, isListView = false, onClick = {
                                 if (item.type == "folder") {
                                     history = history + currentPath
                                     loadPath(item.path)
-                                    // Reset sidebar focus when navigating deep
                                     isSidebarFocused = false
                                 } else {
                                     playingItem = item
@@ -182,7 +176,6 @@ fun MainScreen() {
             }
         }
 
-        // Player Overlay
         if (playingItem != null) {
             PlayerScreen(item = playingItem!!, onClose = { playingItem = null })
         }

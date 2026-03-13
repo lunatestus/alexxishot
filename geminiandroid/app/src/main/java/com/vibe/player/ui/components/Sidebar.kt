@@ -40,7 +40,7 @@ fun Sidebar(
         NavItem("Settings", "settings", Icons.Default.Settings)
     )
 
-    val width by animateDpAsState(targetValue = if (isExpanded) 250.dp else 80.dp)
+    val width by animateDpAsState(targetValue = if (isExpanded) 200.dp else 64.dp)
 
     Column(
         modifier = Modifier
@@ -48,28 +48,29 @@ fun Sidebar(
             .width(width)
             .background(SidebarBg)
             .onFocusChanged { onFocusChange(it.hasFocus) }
-            .padding(top = 30.dp)
+            .padding(top = 24.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (isExpanded) 25.dp else 10.dp, vertical = 20.dp),
+                .padding(horizontal = if (isExpanded) 20.dp else 10.dp, vertical = 15.dp),
             contentAlignment = if (isExpanded) Alignment.CenterStart else Alignment.Center
         ) {
             if (isExpanded) {
                 Text(
                     text = "Vibe Player",
                     color = TextColor,
-                    fontSize = 22.sp,
+                    fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    maxLines = 1
+                    maxLines = 1,
+                    fontFamily = SpaceGrotesk
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.Movie,
                     contentDescription = null,
                     tint = TextColor,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -77,7 +78,7 @@ fun Sidebar(
         Spacer(modifier = Modifier.height(1.dp).fillMaxWidth().background(SidebarBorder))
 
         LazyColumn(
-            modifier = Modifier.padding(top = 20.dp)
+            modifier = Modifier.padding(top = 16.dp)
         ) {
             items(navItems) { item ->
                 var isFocused by remember { mutableStateOf(false) }
@@ -89,7 +90,7 @@ fun Sidebar(
                         .focusable()
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
-                        .padding(horizontal = if (isExpanded) 25.dp else 20.dp, vertical = 15.dp),
+                        .padding(horizontal = if (isExpanded) 20.dp else 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
                 ) {
@@ -97,16 +98,17 @@ fun Sidebar(
                         imageVector = item.icon,
                         contentDescription = null,
                         tint = TextColor,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                     if (isExpanded) {
-                        Spacer(modifier = Modifier.width(15.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = item.label,
                             color = TextColor,
-                            fontSize = 18.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
-                            maxLines = 1
+                            maxLines = 1,
+                            fontFamily = SpaceGrotesk
                         )
                     }
                 }
