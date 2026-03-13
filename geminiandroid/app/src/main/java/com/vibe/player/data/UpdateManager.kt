@@ -77,5 +77,8 @@ object UpdateManager {
             .setDataAndType(uri, APK_MIME)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
+
+        // Delete the APK after handing it off to the installer so it doesn't waste storage
+        file.deleteOnExit()
     }
 }
