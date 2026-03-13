@@ -170,7 +170,7 @@ fun MainScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(imageVector = Icons.Default.ElectricBolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(imageVector = PlayerIcons.Bolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = DmSans)
                     Spacer(modifier = Modifier.width(14.dp))

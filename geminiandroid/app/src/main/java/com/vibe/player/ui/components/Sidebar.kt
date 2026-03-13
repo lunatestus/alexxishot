@@ -41,11 +41,11 @@ fun Sidebar(
     onNavClick: (String) -> Unit
 ) {
     val navItems = listOf(
-        NavItem("Home", "home", Icons.Default.Home),
-        NavItem("Movies", "movies", Icons.Default.Movie),
-        NavItem("TV Shows", "tv", Icons.Default.Tv),
-        NavItem("Update", "update", Icons.Default.SystemUpdate),
-        NavItem("Settings", "settings", Icons.Default.Settings)
+        NavItem("Home", "home", PlayerIcons.Home),
+        NavItem("Movies", "movies", PlayerIcons.Movies),
+        NavItem("TV Shows", "tv", PlayerIcons.Tv),
+        NavItem("Update", "update", PlayerIcons.Update),
+        NavItem("Settings", "settings", PlayerIcons.Settings)
     )
 
     val expandedWidth = 200.dp
