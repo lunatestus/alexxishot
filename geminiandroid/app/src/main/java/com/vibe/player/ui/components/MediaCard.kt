@@ -5,7 +5,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -32,20 +30,18 @@ import com.vibe.player.ui.theme.*
 @Composable
 fun MediaCard(
     item: FileItem,
-    index: Int, // Added index for staggered animation
+    index: Int,
     isListView: Boolean,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
 
-    // Staggered entrance trigger
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(index * 50L) // 50ms delay per item
+        kotlinx.coroutines.delay(index * 30L)
         visible = true
     }
 
-    // Animations for scale, border, and glow
     val scale by animateFloatAsState(
         targetValue = if (isFocused && !isListView) 1.05f else 1f,
         animationSpec = tween(durationMillis = 200),
@@ -58,25 +54,13 @@ fun MediaCard(
         label = "borderColor"
     )
 
-    val shadowElevation by animateFloatAsState(
-        targetValue = if (isFocused) 15f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "shadow"
-    )
-
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(400)) + slideInVertically(tween(400)) { it / 4 }
+        enter = fadeIn(tween(300))
     ) {
         val modifier = Modifier
             .zIndex(if (isFocused) 1f else 0f)
             .scale(scale)
-            .shadow(
-                elevation = shadowElevation.dp,
-                shape = RoundedCornerShape(10.dp),
-                ambientColor = AccentColor,
-                spotColor = AccentColor
-            )
             .onFocusChanged { isFocused = it.isFocused }
             .focusable()
             .clickable { onClick() }
