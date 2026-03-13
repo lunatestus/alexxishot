@@ -30,6 +30,7 @@ fun MediaCard(
     item: FileItem,
     index: Int,
     isListView: Boolean,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -46,7 +47,7 @@ fun MediaCard(
         label = "borderColor"
     )
 
-    val modifier = Modifier
+    val cardModifier = modifier
         .zIndex(if (isFocused) 1f else 0f)
         .scale(scale)
         .onFocusChanged { isFocused = it.isFocused }
@@ -60,7 +61,7 @@ fun MediaCard(
 
     if (isListView) {
         Row(
-            modifier = modifier
+            modifier = cardModifier
                 .fillMaxWidth()
                 .height(80.dp)
                 .background(CardBg)
@@ -106,7 +107,7 @@ fun MediaCard(
             }
         } else {
             Box(
-                modifier = modifier
+                modifier = cardModifier
                     .aspectRatio(16f / 9f)
                     .background(CardBg)
             ) {

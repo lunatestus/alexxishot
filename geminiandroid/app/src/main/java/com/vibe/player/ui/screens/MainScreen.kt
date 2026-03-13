@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +66,7 @@ fun MainScreen() {
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
+    val firstItemFocusRequester = remember { FocusRequester() }
 
     fun loadPath(path: String) {
         currentPath = path
@@ -79,6 +81,16 @@ fun MainScreen() {
 
     LaunchedEffect(Unit) {
         loadPath("/media")
+    }
+
+    LaunchedEffect(items, isListView) {
+        if (items.isNotEmpty()) {
+            // Give layout a tiny moment to render the new list/grid before requesting focus
+            kotlinx.coroutines.delay(100)
+            try {
+                firstItemFocusRequester.requestFocus()
+            } catch (e: Exception) {}
+        }
     }
 
     BackHandler(enabled = history.isNotEmpty() || playingItem != null) {
@@ -125,6 +137,10 @@ fun MainScreen() {
                         .clip(RoundedCornerShape(10.dp))
                         .background(CardBg)
                         .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
+                        .focusProperties {
+                            down = if (items.isNotEmpty()) firstItemFocusRequester else FocusRequester.Default
+                            left = FocusRequester.Default
+                        }
                         .onFocusChanged { isToggleFocused = it.isFocused }
                         .clickable { isListView = !isListView },
                     contentAlignment = Alignment.Center
@@ -157,19 +173,31 @@ fun MainScreen() {
             } else if (isListView) {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items) { index, item ->
-                        MediaCard(item = item, index = index, isListView = true, onClick = {
-                            if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                            else { playingItem = item }
-                        })
+                        MediaCard(
+                            item = item, 
+                            index = index, 
+                            isListView = true, 
+                            modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                            onClick = {
+                                if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
+                                else { playingItem = item }
+                            }
+                        )
                     }
                 }
             } else {
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 220.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items) { index, item ->
-                        MediaCard(item = item, index = index, isListView = false, onClick = {
-                            if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                            else { playingItem = item }
-                        })
+                        MediaCard(
+                            item = item, 
+                            index = index, 
+                            isListView = false, 
+                            modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                            onClick = {
+                                if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
+                                else { playingItem = item }
+                            }
+                        )
                     }
                 }
             }

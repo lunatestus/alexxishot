@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -88,6 +89,13 @@ fun Sidebar(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusProperties {
+                            // Ensure up/down stays within the sidebar or stops, instead of leaking out
+                            if (index == 0) up = FocusRequester.Cancel
+                            if (index == navItems.lastIndex) down = FocusRequester.Cancel
+                            // explicitly prevent right from bleeding into random things besides the content grid
+                            right = FocusRequester.Default
+                        }
                         .onFocusChanged { isFocused = it.isFocused }
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
