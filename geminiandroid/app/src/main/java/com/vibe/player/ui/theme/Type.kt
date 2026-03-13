@@ -8,24 +8,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.vibe.player.R
 
-val SpaceGrotesk = FontFamily(
-    Font(R.font.space_grotesk, FontWeight.Normal),
-    Font(R.font.space_grotesk, FontWeight.Bold),
-    Font(R.font.space_grotesk, FontWeight.Medium),
-    Font(R.font.space_grotesk, FontWeight.SemiBold)
+val DmSans = FontFamily(
+    Font(R.font.dm_sans_bold, FontWeight.Normal),
+    Font(R.font.dm_sans_bold, FontWeight.Bold),
+    Font(R.font.dm_sans_bold, FontWeight.Medium),
+    Font(R.font.dm_sans_bold, FontWeight.SemiBold)
 )
 
 val Typography = Typography(
     bodyLarge = TextStyle(
-        fontFamily = SpaceGrotesk,
-        fontWeight = FontWeight.Normal,
+        fontFamily = DmSans,
+        fontWeight = FontWeight.Bold,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp,
         color = TextColor
     ),
     titleLarge = TextStyle(
-        fontFamily = SpaceGrotesk,
+        fontFamily = DmSans,
         fontWeight = FontWeight.Bold,
         fontSize = 22.sp,
         lineHeight = 28.sp,
@@ -33,8 +33,8 @@ val Typography = Typography(
         color = TextColor
     ),
     labelSmall = TextStyle(
-        fontFamily = SpaceGrotesk,
-        fontWeight = FontWeight.Medium,
+        fontFamily = DmSans,
+        fontWeight = FontWeight.Bold,
         fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp,

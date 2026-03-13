@@ -46,6 +46,7 @@ image = (
     .run_commands(
         "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -",
         "apt-get install -y nodejs",
+        "npm install -g @google/gemini-cli",
     )
     .run_commands(
         "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared",

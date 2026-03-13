@@ -209,14 +209,14 @@ fun PlayerScreen(
                         text = playbackError ?: "Playback error",
                         color = Color.White,
                         fontSize = 16.sp,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Press Back to exit",
                         color = Color(0xB3FFFFFF),
                         fontSize = 12.sp,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                 }
             }
@@ -242,7 +242,7 @@ fun PlayerScreen(
                     color = TextColor,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = SpaceGrotesk
+                    fontFamily = DmSans
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -411,7 +411,7 @@ fun PlayerSeekBar(
                 formatTime(currentPosition),
                 color = Color(0xCCFFFFFF),
                 fontSize = 12.sp,
-                fontFamily = SpaceGrotesk
+                fontFamily = DmSans
             )
             Spacer(modifier = Modifier.width(10.dp))
             BoxWithConstraints(
@@ -450,7 +450,7 @@ fun PlayerSeekBar(
                 formatTimeOrUnknown(duration),
                 color = Color(0xCCFFFFFF),
                 fontSize = 12.sp,
-                fontFamily = SpaceGrotesk
+                fontFamily = DmSans
             )
         }
     }

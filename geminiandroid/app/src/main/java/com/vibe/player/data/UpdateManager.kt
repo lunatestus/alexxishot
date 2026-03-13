@@ -9,11 +9,18 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.File
 
 object UpdateManager {
     const val APK_MIME = "application/vnd.android.package-archive"
+    private const val APK_FILENAME = "vibe-update.apk"
 
     fun startUpdateDownload(context: Context, url: String): Long {
+        // Delete previous APK so DownloadManager doesn't fail with a conflict
+        val oldFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), APK_FILENAME)
+        if (oldFile.exists()) oldFile.delete()
+
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle("Vibe Player Update")
             .setDescription("Downloading update...")
@@ -22,7 +29,7 @@ object UpdateManager {
             .setDestinationInExternalFilesDir(
                 context,
                 Environment.DIRECTORY_DOWNLOADS,
-                "vibe-update.apk"
+                APK_FILENAME
             )
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
@@ -42,9 +49,9 @@ object UpdateManager {
             }
             val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
             if (status == DownloadManager.STATUS_SUCCESSFUL) {
-                val uri = dm.getUriForDownloadedFile(downloadId)
-                if (uri != null) {
-                    promptInstall(context, uri)
+                val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), APK_FILENAME)
+                if (file.exists()) {
+                    promptInstall(context, file)
                 } else {
                     Toast.makeText(context, "Downloaded file unavailable", Toast.LENGTH_SHORT).show()
                 }
@@ -54,7 +61,7 @@ object UpdateManager {
         }
     }
 
-    private fun promptInstall(context: Context, uri: Uri) {
+    private fun promptInstall(context: Context, file: File) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!context.packageManager.canRequestPackageInstalls()) {
                 val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
@@ -65,6 +72,7 @@ object UpdateManager {
             }
         }
 
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
         val intent = Intent(Intent.ACTION_VIEW)
             .setDataAndType(uri, APK_MIME)
             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)

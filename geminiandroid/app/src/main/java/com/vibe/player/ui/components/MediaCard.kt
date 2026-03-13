@@ -85,7 +85,7 @@ fun MediaCard(
                         color = Color(0x33FFFFFF),
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                 }
                 Column(
@@ -99,13 +99,13 @@ fun MediaCard(
                         color = TextColor,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                     Text(
                         text = item.type.uppercase(),
                         color = Color(0xFFAAAAAA),
                         fontSize = 12.sp,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                 }
             }
@@ -126,7 +126,7 @@ fun MediaCard(
                         color = Color(0x33FFFFFF),
                         fontWeight = FontWeight.Bold,
                         fontSize = 28.sp,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                 }
                 Box(
@@ -150,13 +150,13 @@ fun MediaCard(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                     Text(
                         text = item.type.uppercase(),
                         color = Color(0xFFAAAAAA),
                         fontSize = 11.sp,
-                        fontFamily = SpaceGrotesk
+                        fontFamily = DmSans
                     )
                 }
             }

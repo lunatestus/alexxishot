@@ -73,7 +73,7 @@ fun Sidebar(
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
-                    fontFamily = SpaceGrotesk
+                    fontFamily = DmSans
                 )
             } else {
                 Icon(
@@ -126,7 +126,7 @@ fun Sidebar(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
-                            fontFamily = SpaceGrotesk
+                            fontFamily = DmSans
                         )
                     }
                 }

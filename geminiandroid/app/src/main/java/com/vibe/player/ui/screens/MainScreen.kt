@@ -162,9 +162,9 @@ fun MainScreen() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(imageVector = Icons.Default.ElectricBolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = SpaceGrotesk)
+                    Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = DmSans)
                     Spacer(modifier = Modifier.width(14.dp))
-                    Text(text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}", color = BreadcrumbColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = SpaceGrotesk)
+                    Text(text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}", color = BreadcrumbColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
                 }
 
                 var isToggleFocused by remember { mutableStateOf(false) }
@@ -209,7 +209,7 @@ fun MainScreen() {
                 }
             } else if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = SpaceGrotesk)
+                    Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = DmSans)
                 }
             } else if (isListView) {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
