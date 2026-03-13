@@ -134,7 +134,22 @@ fun MainScreen() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
                     Spacer(modifier = Modifier.width(14.dp))
-                    Text(text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}", color = BreadcrumbColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
+                    if (currentPath != "/") {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(CardBg)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = "/ ${currentPath.removePrefix("/")}",
+                                color = BreadcrumbColor,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontFamily = DmSans
+                            )
+                        }
+                    }
                 }
 
                 var isToggleFocused by remember { mutableStateOf(false) }
