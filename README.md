@@ -1,22 +1,40 @@
-# Vibe Player - Android TV Demo UI
+# Vibe Player - Multi-Agent Android TV Development
 
-This is a demo user interface for the Android TV application we are currently developing. 
+This repository hosts the development of **Vibe Player**, a modern Android TV application. We are using a unique "Multi-Agent" workflow, comparing different AI architectures (Gemini vs. OpenAI) to build a pin-point replica of our high-fidelity web prototype.
 
-### Key Features (Prototype):
-- **Android TV Navigation:** Optimized for D-pad/Remote control usage.
-- **Dynamic Views:** Support for both Grid and List layouts (defaults to List).
-- **Advanced Player UI:** 
-    - Interactive progress bar with seeking support.
-    - TV-safe layout with optimized padding and safe areas.
-    - High-visibility focus states for remote navigation.
-    - Clean, all-white aesthetic.
+## 📂 Project Structure
 
-### Development Note & Workflow:
-This UI serves as the foundation for the upcoming native Android application. 
+- `justui/`: The original Web-based prototype (HTML/CSS/JS). Serves as the "Source of Truth" for layout, colors, and animations.
+- `geminiandroid/`: The native Android implementation built using **Jetpack Compose**, developed on the `gemini` branch.
+- `openaiandroid/`: Parallel Android implementation developed on the `openai` branch.
 
-Due to local hardware constraints, the native Android application will be developed using a **Remote Development Workflow**:
-1. **Branching:** Native Android code will be written and committed to a separate branch (`feature/android-native`).
-2. **Staging Environment (Temp GitHub):** Initial development and CI/CD testing will be pushed to a temporary/secondary GitHub account. This keeps the primary profile clean during the messy prototyping phase.
-3. **Remote Building:** GitHub Actions on the temporary repository will automatically build the Android APK upon every push.
-4. **Testing:** The resulting APK will be downloaded and tested on an actual Android TV or remote emulator.
-5. **Production Release (Main GitHub):** Once the application is stable, verified, and ready for release, the final clean code and its history will be pushed to the main GitHub account and merged into the `main` branch.
+## 🚀 Development Workflow
+
+We employ a **Remote Build & Validate** strategy to overcome local hardware constraints and ensure production-grade builds:
+
+### 1. Branch Management
+- **`main`**: Production-ready, stable code.
+- **`gemini`**: Active development of the Gemini-architected Compose app. Optimized for TV-safe interactions.
+- **`openai`**: Development and experiments using OpenAI's architecture.
+
+### 2. CI/CD & Remote Building
+We use **GitHub Actions** to automate the compilation of Android APKs. This ensures that every commit is "build-stable."
+
+- **Workflow:** `.github/workflows/gemini-build.yml`
+- **Engine:** Gradle 8.6 with Java 17.
+- **Optimizations:** 
+    - **Caching:** Uses `gradle/actions/setup-gradle` for high-speed dependency caching.
+    - **Future-Proof:** Opted into Node.js 24 for all build actions.
+- **Artifacts:** Every push to the `gemini` branch generates a downloadable `gemini-vibe-player-debug.apk`.
+
+### 3. UI Precision (The "Pin-Point" Rule)
+The Android application is built to be a 1:1 match with the `justui` demo:
+- **Typography:** Locally bundled **Space Grotesk** font.
+- **Animations:** Custom Compose animations for focus scaling (1.06x) and content dimming (0.5 alpha).
+- **D-Pad Navigation:** Custom focus handling to mimic the web's TV-remote behavior.
+
+## 🛠 Testing the App
+1. Push changes to the `gemini` branch.
+2. Wait for the **Gemini Android Build** action to complete.
+3. Download the APK from the "Actions" tab.
+4. Sideload onto an Android TV or Emulator for validation.
