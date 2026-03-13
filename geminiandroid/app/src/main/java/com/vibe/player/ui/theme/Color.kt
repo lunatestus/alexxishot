@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 val BgColor = Color(0xFF121212)
 val SidebarBg = Color(0xFF1E1E1E)
 val TextColor = Color(0xFFFFFFFF)
-val AccentColor = Color(0xFF007BFF)
+val AccentColor = Color(0xFFFFFFFF)
 val CardBg = Color(0xFF2A2A2A)
 val ProgressTrack = Color(0x33FFFFFF)
 val ProgressFill = Color(0xFFFFFFFF)

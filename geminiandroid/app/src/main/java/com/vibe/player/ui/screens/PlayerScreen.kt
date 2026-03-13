@@ -5,7 +5,6 @@ package com.vibe.player.ui.screens
 import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import androidx.annotation.OptIn
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
