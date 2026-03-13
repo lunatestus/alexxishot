@@ -21,6 +21,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -31,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -50,6 +54,7 @@ fun MainScreen() {
     var playingItem by remember { mutableStateOf<FileItem?>(null) }
     var isSidebarFocused by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -58,14 +63,17 @@ fun MainScreen() {
     fun loadPath(path: String) {
         currentPath = path
         isLoading = true
+        errorMessage = null
         coroutineScope.launch {
             items = ApiClient.fetchFolder(path)
+            errorMessage = ApiClient.lastError
             isLoading = false
         }
     }
 
     LaunchedEffect(Unit) {
         items = ApiClient.fetchFolder("/media")
+        errorMessage = ApiClient.lastError
         isLoading = false
     }
 
@@ -83,11 +91,10 @@ fun MainScreen() {
     val contentParallax by animateDpAsState(targetValue = if (isSidebarFocused) 24.dp else 0.dp)
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
-        // Content Area - Layered underneath the Sidebar for smoother layout
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 64.dp) // Leave space for collapsed sidebar
+                .padding(start = 64.dp)
                 .offset(x = contentParallax)
                 .alpha(contentAlpha)
                 .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp)
@@ -99,52 +106,20 @@ fun MainScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.ElectricBolt,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(imageVector = Icons.Default.ElectricBolt, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "MovieApp",
-                        color = TextColor,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = SpaceGrotesk
-                    )
+                    Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = SpaceGrotesk)
                     Spacer(modifier = Modifier.width(14.dp))
-                    Text(
-                        text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}",
-                        color = BreadcrumbColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        fontFamily = SpaceGrotesk
-                    )
+                    Text(text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}", color = BreadcrumbColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = SpaceGrotesk)
                 }
 
                 var isToggleFocused by remember { mutableStateOf(false) }
                 Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(CardBg)
-                        .border(
-                            width = if (isToggleFocused) 2.dp else 1.dp,
-                            color = if (isToggleFocused) AccentColor else ViewToggleBorder,
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        .onFocusChanged { isToggleFocused = it.isFocused }
-                        .focusable()
-                        .clickable { isListView = !isListView },
+                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CardBg).border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
+                        .onFocusChanged { isToggleFocused = it.isFocused }.focusable().clickable { isListView = !isListView },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isListView) Icons.Default.GridView else Icons.Default.List,
-                        contentDescription = "Toggle View",
-                        tint = TextColor,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Icon(imageVector = if (isListView) Icons.Default.GridView else Icons.Default.List, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
                 }
             }
 
@@ -152,69 +127,44 @@ fun MainScreen() {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Loading media...", color = TextColor, fontSize = 18.sp, fontFamily = SpaceGrotesk)
                 }
+            } else if (errorMessage != null) {
+                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    Text("Error: $errorMessage", color = Color.Red, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(20.dp))
+                    Button(
+                        onClick = { loadPath(currentPath) },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor)
+                    ) {
+                        Icon(Icons.Default.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Retry")
+                    }
+                }
             } else if (items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = SpaceGrotesk)
                 }
             } else if (isListView) {
-
-                LazyColumn(
-                    state = listState,
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 40.dp)
-                ) {
+                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items) { index, item ->
-                        MediaCard(
-                            item = item,
-                            index = index,
-                            isListView = true,
-                            onClick = {
-                                if (item.type == "folder") {
-                                    history = history + currentPath
-                                    loadPath(item.path)
-                                } else {
-                                    playingItem = item
-                                }
-                            }
-                        )
+                        MediaCard(item = item, index = index, isListView = true, onClick = {
+                            if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
+                            else { playingItem = item }
+                        })
                     }
                 }
             } else {
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Adaptive(minSize = 220.dp),
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 40.dp)
-                ) {
+                LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 220.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items) { index, item ->
-                        MediaCard(
-                            item = item,
-                            index = index,
-                            isListView = false,
-                            onClick = {
-                                if (item.type == "folder") {
-                                    history = history + currentPath
-                                    loadPath(item.path)
-                                    isSidebarFocused = false
-                                } else {
-                                    playingItem = item
-                                }
-                            }
-                        )
+                        MediaCard(item = item, index = index, isListView = false, onClick = {
+                            if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
+                            else { playingItem = item }
+                        })
                     }
                 }
             }
         }
 
-        // Sidebar - Layered on top with absolute positioning
-        Sidebar(
-            isExpanded = isSidebarFocused,
-            onFocusChange = { isSidebarFocused = it },
-            onNavClick = { /* Handle nav */ }
-        )
+        Sidebar(isExpanded = isSidebarFocused, onFocusChange = { isSidebarFocused = it }, onNavClick = { /* Handle nav */ })
 
         if (playingItem != null) {
             PlayerScreen(item = playingItem!!, onClose = { playingItem = null })
