@@ -1,4 +1,7 @@
 server.log
-android/.gradle/
-android/**/build/
-android/local.properties
+*.swp
+**/.gradle/
+**/build/
+**/local.properties
+.idea/
+*.iml
