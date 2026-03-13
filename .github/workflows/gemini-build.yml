@@ -22,16 +22,13 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v4
       with:
-        gradle-version: wrapper
-        # The cache-read-only property can be used for PRs if needed
-        # cache-read-only: ${{ github.event_name == 'pull_request' }}
+        gradle-version: "8.6" # This will install and cache Gradle 8.6 automatically
 
     - name: Build with Gradle
       run: |
         cd geminiandroid
-        # Using the wrapper committed in the repo
-        chmod +x gradlew || true
-        ./gradlew assembleDebug
+        # Using the gradle command installed by setup-gradle action
+        gradle assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
