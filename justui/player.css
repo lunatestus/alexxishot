@@ -1,0 +1,197 @@
+.player-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000000;
+    z-index: 1000;
+    display: flex;
+    align-items: stretch;
+    justify-content: stretch;
+    color: #ffffff;
+}
+
+.player-overlay.hidden {
+    display: none;
+}
+
+.player-layer {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 40px; /* Increased for TV safe area */
+    box-sizing: border-box;
+}
+
+.player-video-frame {
+    flex: 1;
+    background: #000000;
+    border-radius: 0; /* Sharp edges for cinematic feel */
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+
+.player-video-frame video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Ensure full video is visible without cropping */
+}
+
+.player-hud {
+    position: absolute;
+    left: 40px;
+    right: 40px;
+    bottom: 0;
+    padding: 60px 40px 40px;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0) 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    z-index: 10;
+}
+
+.player-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+}
+
+.player-progress {
+    position: relative;
+    padding: 10px 0;
+    margin: -10px 0;
+    cursor: pointer;
+}
+
+.player-progress .progress-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.2);
+    position: relative;
+    transition: height 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease;
+}
+
+.player-progress .progress-fill {
+    width: var(--progress, 22%);
+    height: 100%;
+    background: #ffffff;
+    border-radius: 999px;
+    transition: background 0.2s ease;
+}
+
+.progress-dot {
+    position: absolute;
+    top: 50%;
+    left: var(--progress, 22%);
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: #ffffff;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), height 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    z-index: 20;
+}
+
+.progress-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    margin-top: 12px;
+}
+
+.control-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 80px;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.player-btn {
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.player-btn svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+}
+
+.player-btn.primary {
+    width: 72px;
+    height: 72px;
+    border-radius: 999px;
+    background: transparent;
+    color: #ffffff;
+}
+
+.player-btn.primary svg {
+    width: 40px;
+    height: 40px;
+}
+
+.settings-btn {
+    width: auto;
+    height: 48px;
+    padding: 0 20px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    border-radius: 999px;
+}
+
+.player-btn .icon-pause {
+    display: none;
+}
+
+.player-overlay.playing .player-btn.primary .icon-play {
+    display: none;
+}
+
+.player-overlay.playing .player-btn.primary .icon-pause {
+    display: block;
+}
+
+.player-btn.focused {
+    opacity: 1;
+    background: #ffffff;
+    color: #000000;
+    transform: scale(1.12);
+}
+
+.player-progress.focused .progress-track {
+    height: 10px;
+    background: rgba(255, 255, 255, 0.4);
+}
+
+.player-progress.focused .progress-fill {
+    background: #ffffff;
+}
+
+.player-progress.focused .progress-dot {
+    opacity: 1;
+    width: 24px;
+    height: 24px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+}

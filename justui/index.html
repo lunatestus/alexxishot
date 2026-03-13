@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Android TV Browser</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="player.css">
+</head>
+<body class="dark-theme">
+    <!-- Sidebar -->
+    <nav id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+            <h2>Vibe Player</h2>
+        </div>
+        <ul class="sidebar-nav">
+            <li class="nav-item active" data-nav="home">Home</li>
+            <li class="nav-item" data-nav="movies">Movies</li>
+            <li class="nav-item" data-nav="tv">TV Shows</li>
+            <li class="nav-item" data-nav="settings">Settings</li>
+        </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main id="main-content">
+        <header class="content-header">
+            <h1 class="title-row">
+                <span class="brand">
+                    <svg class="brand-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"></path>
+                    </svg>
+                    MovieApp
+                </span>
+                <span id="current-path" class="breadcrumb"></span>
+            </h1>
+            <button id="view-toggle" class="view-toggle" aria-label="Switch to list view" title="Switch view">
+                <svg class="icon icon-list" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="5" width="16" height="2" rx="1"></rect>
+                    <rect x="4" y="11" width="16" height="2" rx="1"></rect>
+                    <rect x="4" y="17" width="16" height="2" rx="1"></rect>
+                </svg>
+                <svg class="icon icon-grid" viewBox="0 0 24 24" aria-hidden="true">
+                    <rect x="4" y="4" width="7" height="7" rx="1"></rect>
+                    <rect x="13" y="4" width="7" height="7" rx="1"></rect>
+                    <rect x="4" y="13" width="7" height="7" rx="1"></rect>
+                    <rect x="13" y="13" width="7" height="7" rx="1"></rect>
+                </svg>
+            </button>
+        </header>
+
+        <div id="content-grid" class="content-grid">
+            <!-- Cards will be injected here -->
+        </div>
+    </main>
+
+    <!-- Video Player Overlay -->
+    <div id="player-overlay" class="player-overlay hidden" aria-hidden="true">
+        <div class="player-layer">
+            <div class="player-video-frame">
+                <video id="video-player" poster="" playsinline></video>
+            </div>
+            <div class="player-hud">
+                <div class="player-title">
+                    <span id="player-title-text">Now Playing</span>
+                </div>
+                <div class="player-progress player-focusable" data-action="progress" aria-label="Seek">
+                    <div class="progress-track">
+                        <div class="progress-fill"></div>
+                        <div class="progress-dot"></div>
+                    </div>
+                    <div class="progress-time">
+                        <span>00:12</span>
+                        <span>04:36</span>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <div class="control-group">
+                        <button class="player-btn player-focusable primary" data-action="toggle" aria-label="Play">
+                        <svg class="icon-tabler icon-play" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                            <path d="M6 4v16a1 1 0 0 0 1.524 .852l13 -8a1 1 0 0 0 0 -1.704l-13 -8a1 1 0 0 0 -1.524 .852z"></path>
+                        </svg>
+                        <svg class="icon-tabler icon-pause" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                            <path d="M9 4h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"></path>
+                            <path d="M17 4h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h2a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2z"></path>
+                        </svg>
+                        </button>
+                        <button class="player-btn player-focusable" data-action="rewind" aria-label="Previous">
+                        <svg class="icon-tabler" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                            <path d="M20.341 4.247l-8 7a1 1 0 0 0 0 1.506l8 7c.647 .565 1.659 .106 1.659 -.753v-14c0 -.86 -1.012 -1.318 -1.659 -.753z"></path>
+                            <path d="M9.341 4.247l-8 7a1 1 0 0 0 0 1.506l8 7c.647 .565 1.659 .106 1.659 -.753v-14c0 -.86 -1.012 -1.318 -1.659 -.753z"></path>
+                        </svg>
+                        </button>
+                        <button class="player-btn player-focusable" data-action="forward" aria-label="Next">
+                        <svg class="icon-tabler" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                            <path d="M2 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"></path>
+                            <path d="M13 5v14c0 .86 1.012 1.318 1.659 .753l8 -7a1 1 0 0 0 0 -1.506l-8 -7c-.647 -.565 -1.659 -.106 -1.659 .753z"></path>
+                        </svg>
+                        </button>
+                    </div>
+                    <button class="player-btn player-focusable settings-btn" data-action="settings" aria-label="Settings">
+                        <svg class="icon-tabler" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none"></path>
+                            <path d="M14.647 4.081a.724 .724 0 0 0 1.08 .448c2.439 -1.485 5.23 1.305 3.745 3.744a.724 .724 0 0 0 .447 1.08c2.775 .673 2.775 4.62 0 5.294a.724 .724 0 0 0 -.448 1.08c1.485 2.439 -1.305 5.23 -3.744 3.745a.724 .724 0 0 0 -1.08 .447c-.673 2.775 -4.62 2.775 -5.294 0a.724 .724 0 0 0 -1.08 -.448c-2.439 1.485 -5.23 -1.305 -3.745 -3.744a.724 .724 0 0 0 -.447 -1.08c-2.775 -.673 -2.775 -4.62 0 -5.294a.724 .724 0 0 0 .448 -1.08c-1.485 -2.439 1.305 -5.23 3.744 -3.745a.722 .722 0 0 0 1.08 -.447c.673 -2.775 4.62 -2.775 5.294 0zm-2.647 4.919a3 3 0 1 0 0 6a3 3 0 0 0 0 -6"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
