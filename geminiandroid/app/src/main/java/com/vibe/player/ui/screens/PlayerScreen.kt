@@ -131,11 +131,15 @@ fun PlayerScreen(
                 PlayerView(it).apply {
                     player = exoPlayer
                     useController = false
+                    keepScreenOn = isPlaying
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
+            },
+            update = { playerView ->
+                playerView.keepScreenOn = isPlaying
             },
             modifier = Modifier.fillMaxSize()
         )
