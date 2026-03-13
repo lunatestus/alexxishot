@@ -42,16 +42,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
+import com.vibe.player.util.AppUpdater
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen() {
+    val context = LocalContext.current
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
@@ -61,6 +65,7 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
+    var updateInProgress by remember { mutableStateOf(false) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -135,10 +140,30 @@ fun MainScreen() {
                 }
 
                 var isToggleFocused by remember { mutableStateOf(false) }
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (updateInProgress) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = TextColor,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Updating…",
+                                color = BreadcrumbColor,
+                                fontSize = 12.sp,
+                                fontFamily = DmSans
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
                         .background(CardBg)
                         .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
                         .focusProperties {
@@ -224,6 +249,25 @@ fun MainScreen() {
             onNavClick = { id ->
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
+                } else if (id == "update") {
+                    if (updateInProgress) {
+                        Toast.makeText(context, "Update already downloading", Toast.LENGTH_SHORT).show()
+                    } else {
+                        updateInProgress = true
+                        Toast.makeText(context, "Downloading update…", Toast.LENGTH_SHORT).show()
+                        coroutineScope.launch {
+                            val result = AppUpdater.downloadAndInstall(
+                                context,
+                                "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk"
+                            ) { progress ->
+                                // Optional progress handling
+                            }
+                            updateInProgress = false
+                            if (result.isFailure) {
+                                Toast.makeText(context, "Update failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
                 }
             }
         )

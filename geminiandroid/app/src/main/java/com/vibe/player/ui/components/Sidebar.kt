@@ -38,6 +38,7 @@ fun Sidebar(
         NavItem("Home", "home", PlayerIcons.Home),
         NavItem("Movies", "movies", PlayerIcons.Movies),
         NavItem("TV Shows", "tv", PlayerIcons.Tv),
+        NavItem("Update", "update", PlayerIcons.Update),
         NavItem("Settings", "settings", PlayerIcons.Settings)
     )
 
