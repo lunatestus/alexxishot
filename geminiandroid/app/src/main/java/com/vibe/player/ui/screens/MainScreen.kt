@@ -72,6 +72,7 @@ fun MainScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
     var updateDownloadId by remember { mutableStateOf<Long?>(null) }
+    var updateInProgress by remember { mutableStateOf(false) }
 
     val updateUrl = "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk"
 
@@ -114,7 +115,16 @@ fun MainScreen() {
                 if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
                 if (id == updateDownloadId) {
-                    UpdateManager.handleDownloadComplete(context, id)
+                    when (val result = UpdateManager.handleDownloadComplete(context, id)) {
+                        is UpdateManager.CompleteResult.StartedInstall -> {
+                            updateInProgress = false
+                            Toast.makeText(context, "Update downloaded. Installing…", Toast.LENGTH_SHORT).show()
+                        }
+                        is UpdateManager.CompleteResult.Error -> {
+                            updateInProgress = false
+                            Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                        }
+                    }
                     updateDownloadId = null
                 }
             }
@@ -168,25 +178,46 @@ fun MainScreen() {
                 }
 
                 var isToggleFocused by remember { mutableStateOf(false) }
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(CardBg)
-                        .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
-                        .focusProperties {
-                            down = if (items.isNotEmpty()) firstItemFocusRequester else FocusRequester.Default
-                            left = FocusRequester.Default
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (updateInProgress) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 12.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                color = TextColor,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Updating…",
+                                color = BreadcrumbColor,
+                                fontSize = 12.sp,
+                                fontFamily = DmSans
+                            )
                         }
-                        .onFocusChanged { isToggleFocused = it.isFocused }
-                        .focusable()
-                        .clickable { 
-                            isListView = !isListView
-                            shouldRequestContentFocus = true
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(CardBg)
+                            .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
+                            .focusProperties {
+                                down = if (items.isNotEmpty()) firstItemFocusRequester else FocusRequester.Default
+                                left = FocusRequester.Default
+                            }
+                            .onFocusChanged { isToggleFocused = it.isFocused }
+                            .focusable()
+                            .clickable { 
+                                isListView = !isListView
+                                shouldRequestContentFocus = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
+                    }
                 }
             }
 
@@ -258,10 +289,19 @@ fun MainScreen() {
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
                 } else if (id == "update") {
-                    if (updateDownloadId != null) {
+                    if (updateDownloadId != null || updateInProgress) {
                         Toast.makeText(context, "Update already downloading", Toast.LENGTH_SHORT).show()
                     } else {
-                        updateDownloadId = UpdateManager.startUpdateDownload(context, updateUrl)
+                        when (val result = UpdateManager.startUpdateDownload(context, updateUrl)) {
+                            is UpdateManager.StartResult.Started -> {
+                                updateDownloadId = result.id
+                                updateInProgress = true
+                                Toast.makeText(context, "Downloading update…", Toast.LENGTH_SHORT).show()
+                            }
+                            is UpdateManager.StartResult.Error -> {
+                                Toast.makeText(context, result.message, Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 }
             }

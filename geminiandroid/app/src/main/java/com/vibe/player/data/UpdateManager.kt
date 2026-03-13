@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import android.widget.Toast
 import androidx.core.content.FileProvider
 import java.io.File
 
@@ -16,49 +15,66 @@ object UpdateManager {
     const val APK_MIME = "application/vnd.android.package-archive"
     private const val APK_FILENAME = "vibe-update.apk"
 
-    fun startUpdateDownload(context: Context, url: String): Long {
+    sealed class StartResult {
+        data class Started(val id: Long) : StartResult()
+        data class Error(val message: String) : StartResult()
+    }
+
+    sealed class CompleteResult {
+        object StartedInstall : CompleteResult()
+        data class Error(val message: String) : CompleteResult()
+    }
+
+    fun startUpdateDownload(context: Context, url: String): StartResult {
         // Delete previous APK so DownloadManager doesn't fail with a conflict
         val oldFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), APK_FILENAME)
         if (oldFile.exists()) oldFile.delete()
 
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle("Vibe Player Update")
-            .setDescription("Downloading update...")
-            .setMimeType(APK_MIME)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(
-                context,
-                Environment.DIRECTORY_DOWNLOADS,
-                APK_FILENAME
-            )
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
+        return try {
+            val request = DownloadManager.Request(Uri.parse(url))
+                .setTitle("Vibe Player Update")
+                .setDescription("Downloading update...")
+                .setMimeType(APK_MIME)
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalFilesDir(
+                    context,
+                    Environment.DIRECTORY_DOWNLOADS,
+                    APK_FILENAME
+                )
+                .setAllowedOverMetered(true)
+                .setAllowedOverRoaming(true)
 
-        val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        return dm.enqueue(request)
+            val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val id = dm.enqueue(request)
+            if (id <= 0L) StartResult.Error("Unable to start update download")
+            else StartResult.Started(id)
+        } catch (e: Exception) {
+            StartResult.Error(e.message ?: "Unable to start update download")
+        }
     }
 
-    fun handleDownloadComplete(context: Context, downloadId: Long) {
+    fun handleDownloadComplete(context: Context, downloadId: Long): CompleteResult {
         val dm = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val query = DownloadManager.Query().setFilterById(downloadId)
         val cursor: Cursor? = dm.query(query)
         cursor?.use {
             if (!it.moveToFirst()) {
-                Toast.makeText(context, "Update download not found", Toast.LENGTH_SHORT).show()
-                return
+                return CompleteResult.Error("Update download not found")
             }
             val status = it.getInt(it.getColumnIndexOrThrow(DownloadManager.COLUMN_STATUS))
             if (status == DownloadManager.STATUS_SUCCESSFUL) {
                 val file = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), APK_FILENAME)
                 if (file.exists()) {
                     promptInstall(context, file)
+                    return CompleteResult.StartedInstall
                 } else {
-                    Toast.makeText(context, "Downloaded file unavailable", Toast.LENGTH_SHORT).show()
+                    return CompleteResult.Error("Downloaded file unavailable")
                 }
             } else if (status == DownloadManager.STATUS_FAILED) {
-                Toast.makeText(context, "Update download failed", Toast.LENGTH_SHORT).show()
+                return CompleteResult.Error("Update download failed")
             }
         }
+        return CompleteResult.Error("Update download failed")
     }
 
     private fun promptInstall(context: Context, file: File) {

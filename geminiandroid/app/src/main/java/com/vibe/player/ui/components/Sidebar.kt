@@ -24,6 +24,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -105,6 +106,21 @@ fun Sidebar(
                         }
                         .onFocusChanged { isFocused = it.isFocused }
                         .focusable()
+                        .onKeyEvent { keyEvent ->
+                            if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
+                                when (keyEvent.nativeKeyEvent.keyCode) {
+                                    android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                                    android.view.KeyEvent.KEYCODE_ENTER,
+                                    android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                        onNavClick(item.id)
+                                        true
+                                    }
+                                    else -> false
+                                }
+                            } else {
+                                false
+                            }
+                        }
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
                         .padding(horizontal = if (isExpanded) 20.dp else 16.dp, vertical = 12.dp),
