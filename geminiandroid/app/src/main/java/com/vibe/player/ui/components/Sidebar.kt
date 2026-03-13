@@ -99,6 +99,7 @@ fun Sidebar(
                             right = FocusRequester.Default
                         }
                         .onFocusChanged { isFocused = it.isFocused }
+                        .focusable()
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
                         .padding(horizontal = if (isExpanded) 20.dp else 16.dp, vertical = 12.dp),

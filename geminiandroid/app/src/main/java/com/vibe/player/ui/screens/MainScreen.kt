@@ -61,6 +61,7 @@ fun MainScreen() {
     var isSidebarFocused by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var shouldRequestContentFocus by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -74,6 +75,7 @@ fun MainScreen() {
         currentPath = path
         isLoading = true
         errorMessage = null
+        shouldRequestContentFocus = true
         coroutineScope.launch {
             items = ApiClient.fetchFolder(path)
             errorMessage = ApiClient.lastError
@@ -85,13 +87,12 @@ fun MainScreen() {
         loadPath("/media")
     }
 
-    LaunchedEffect(items, isListView) {
-        if (items.isNotEmpty()) {
+    LaunchedEffect(items, isListView, isSidebarFocused, shouldRequestContentFocus, isLoading) {
+        if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
             // Give layout a tiny moment to render the new list/grid before requesting focus
             kotlinx.coroutines.delay(100)
-            try {
-                firstItemFocusRequester.requestFocus()
-            } catch (e: Exception) {}
+            firstItemFocusRequester.requestFocus()
+            shouldRequestContentFocus = false
         }
     }
 
@@ -144,7 +145,11 @@ fun MainScreen() {
                             left = FocusRequester.Default
                         }
                         .onFocusChanged { isToggleFocused = it.isFocused }
-                        .clickable { isListView = !isListView },
+                        .focusable()
+                        .clickable { 
+                            isListView = !isListView
+                            shouldRequestContentFocus = true
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
@@ -209,7 +214,12 @@ fun MainScreen() {
         Sidebar(
             isExpanded = isSidebarFocused,
             focusRequester = sidebarFocusRequester,
-            onFocusChange = { isSidebarFocused = it },
+            onFocusChange = { focused ->
+                isSidebarFocused = focused
+                if (!focused) {
+                    shouldRequestContentFocus = true
+                }
+            },
             onNavClick = { id ->
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
@@ -218,7 +228,13 @@ fun MainScreen() {
         )
 
         if (playingItem != null) {
-            PlayerScreen(item = playingItem!!, onClose = { playingItem = null })
+            PlayerScreen(
+                item = playingItem!!, 
+                onClose = { 
+                    playingItem = null
+                    shouldRequestContentFocus = true
+                }
+            )
         }
     }
 }

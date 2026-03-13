@@ -4,12 +4,9 @@ import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -35,8 +32,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -52,22 +51,18 @@ fun PlayerScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val streamUrl = remember { ApiClient.getStreamUrl(item.path) }
+    val streamUrl = remember(item.path) { ApiClient.getStreamUrl(item.path) }
     
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            val videoUrl = streamUrl ?: ""
-            setMediaItem(MediaItem.fromUri(videoUrl))
-            prepare()
-            playWhenReady = true
-        }
+        ExoPlayer.Builder(context).build()
     }
 
     var isPlaying by remember { mutableStateOf(true) }
     var showControls by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    var playbackError by remember { mutableStateOf<String?>(null) }
     
-    val focusRequester = remember { FocusRequester() }
+    val controlsFocusRequester = remember { FocusRequester() }
     val screenFocusRequester = remember { FocusRequester() }
 
     // Listen to exoPlayer play state changes
@@ -75,6 +70,10 @@ fun PlayerScreen(
         val listener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlayingState: Boolean) {
                 isPlaying = isPlayingState
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = error.message ?: "Playback error"
             }
         }
         exoPlayer.addListener(listener)
@@ -85,17 +84,38 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(lastInteraction, isPlaying) {
-        if (isPlaying) {
+    LaunchedEffect(streamUrl) {
+        playbackError = null
+        exoPlayer.stop()
+        exoPlayer.clearMediaItems()
+        if (!streamUrl.isNullOrBlank()) {
+            exoPlayer.setMediaItem(MediaItem.fromUri(streamUrl))
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = true
+        } else {
+            playbackError = "Stream unavailable"
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        screenFocusRequester.requestFocus()
+    }
+
+    LaunchedEffect(lastInteraction, isPlaying, showControls) {
+        if (isPlaying && showControls) {
             delay(3000)
-            showControls = false
-            screenFocusRequester.requestFocus() // Steal focus so hidden controls don't keep it
+            if (System.currentTimeMillis() - lastInteraction >= 3000) {
+                showControls = false
+                screenFocusRequester.requestFocus() // Steal focus so hidden controls don't keep it
+            }
         }
     }
 
     LaunchedEffect(showControls) {
         if (showControls) {
-            focusRequester.requestFocus() // Return focus to controls when shown
+            controlsFocusRequester.requestFocus() // Return focus to controls when shown
+        } else {
+            screenFocusRequester.requestFocus()
         }
     }
 
@@ -111,6 +131,20 @@ fun PlayerScreen(
                     when (keyEvent.nativeKeyEvent.keyCode) {
                         KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
                             onClose()
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_CENTER,
+                        KeyEvent.KEYCODE_ENTER,
+                        KeyEvent.KEYCODE_NUMPAD_ENTER,
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_SPACE -> {
+                            lastInteraction = System.currentTimeMillis()
+                            if (!showControls) {
+                                showControls = true
+                            }
+                            if (playbackError == null) {
+                                if (isPlaying) exoPlayer.pause() else exoPlayer.play()
+                            }
                             true
                         }
                         else -> {
@@ -134,6 +168,9 @@ fun PlayerScreen(
                     player = exoPlayer
                     useController = false
                     keepScreenOn = isPlaying
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -145,6 +182,31 @@ fun PlayerScreen(
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        if (playbackError != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = playbackError ?: "Playback error",
+                        color = Color.White,
+                        fontSize = 16.sp,
+                        fontFamily = SpaceGrotesk
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Press Back to exit",
+                        color = Color(0xB3FFFFFF),
+                        fontSize = 12.sp,
+                        fontFamily = SpaceGrotesk
+                    )
+                }
+            }
+        }
 
         // Use alpha instead of AnimatedVisibility so the UI tree doesn't change, 
         // which prevents focus from dropping when controls hide.
@@ -158,7 +220,7 @@ fun PlayerScreen(
                 .fillMaxSize()
                 .alpha(controlsAlpha)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)), startY = 0.6f))
-                .padding(24.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
                 Text(
@@ -192,7 +254,7 @@ fun PlayerScreen(
                                 if (isPlaying) exoPlayer.pause() else exoPlayer.play() 
                             },
                             isPrimary = true,
-                            modifier = Modifier.focusRequester(focusRequester),
+                            modifier = Modifier.focusRequester(controlsFocusRequester),
                             enabled = showControls
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -200,7 +262,8 @@ fun PlayerScreen(
                             icon = PlayerIcons.Rewind,
                             onClick = { 
                                 lastInteraction = System.currentTimeMillis()
-                                exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0L)) 
+                                val next = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
+                                exoPlayer.seekTo(next)
                             },
                             enabled = showControls
                         )
@@ -209,7 +272,10 @@ fun PlayerScreen(
                             icon = PlayerIcons.Forward,
                             onClick = { 
                                 lastInteraction = System.currentTimeMillis()
-                                exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)) 
+                                val rawDuration = exoPlayer.duration
+                                val safeDuration = if (rawDuration > 0 && rawDuration != C.TIME_UNSET) rawDuration else Long.MAX_VALUE
+                                val next = (exoPlayer.currentPosition + 10000).coerceAtMost(safeDuration)
+                                exoPlayer.seekTo(next)
                             },
                             enabled = showControls
                         )
@@ -243,7 +309,8 @@ fun PlayerSeekBar(
             if (System.currentTimeMillis() - lastSeekTime > 500) {
                 currentPosition = exoPlayer.currentPosition
             }
-            duration = exoPlayer.duration.coerceAtLeast(1L)
+            val rawDuration = exoPlayer.duration
+            duration = if (rawDuration > 0 && rawDuration != C.TIME_UNSET) rawDuration else 0L
             delay(250) // Reduced refresh rate to save CPU
         }
     }
@@ -275,7 +342,8 @@ fun PlayerSeekBar(
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         lastSeekTime = System.currentTimeMillis()
                         // Rapidly update local UI state without blocking main thread
-                        currentPosition = (currentPosition + offset).coerceIn(0L, duration)
+                        val next = (currentPosition + offset).coerceAtLeast(0L)
+                        currentPosition = if (duration > 0) next.coerceAtMost(duration) else next
                         true
                     } else if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
                         lastSeekTime = System.currentTimeMillis()
@@ -291,30 +359,43 @@ fun PlayerSeekBar(
             .focusable(showControls)
             .padding(vertical = 4.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxWidth().height(16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Box(modifier = Modifier.fillMaxWidth().height(barHeight).clip(CircleShape).background(ProgressTrack))
-            Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(barHeight).background(ProgressFill))
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val dotOffset = (maxWidth - dotSize) * animatedProgress
-                Box(
-                    modifier = Modifier
-                        .offset(x = dotOffset)
-                        .size(dotSize)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                )
-            }
-        }
-        
         Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(formatTime(currentPosition), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontFamily = SpaceGrotesk)
-            Text(formatTime(duration), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontFamily = SpaceGrotesk)
+            Text(
+                formatTime(currentPosition),
+                color = Color(0xCCFFFFFF),
+                fontSize = 12.sp,
+                fontFamily = SpaceGrotesk
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(16.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Box(modifier = Modifier.fillMaxWidth().height(barHeight).clip(CircleShape).background(ProgressTrack))
+                Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(barHeight).background(ProgressFill))
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val dotOffset = (maxWidth - dotSize) * animatedProgress
+                    Box(
+                        modifier = Modifier
+                            .offset(x = dotOffset)
+                            .size(dotSize)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                formatTimeOrUnknown(duration),
+                color = Color(0xCCFFFFFF),
+                fontSize = 12.sp,
+                fontFamily = SpaceGrotesk
+            )
         }
     }
 }
@@ -328,8 +409,9 @@ fun PlayerButton(
     enabled: Boolean = true
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val size = if (isPrimary) 56.dp else 40.dp
-    val scale by animateFloatAsState(targetValue = if (isFocused) 1.1f else 1f)
+    val size = if (isPrimary) 44.dp else 40.dp
+    val focusedScale = if (isPrimary) 1.0f else 1.1f
+    val scale by animateFloatAsState(targetValue = if (isFocused) focusedScale else 1f)
 
     Box(
         modifier = modifier
@@ -337,6 +419,24 @@ fun PlayerButton(
             .size(size)
             .clip(CircleShape)
             .onFocusChanged { isFocused = it.isFocused }
+            .focusable(enabled)
+            .onKeyEvent { keyEvent ->
+                if (!enabled) return@onKeyEvent false
+                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_CENTER,
+                        KeyEvent.KEYCODE_ENTER,
+                        KeyEvent.KEYCODE_NUMPAD_ENTER,
+                        KeyEvent.KEYCODE_SPACE -> {
+                            onClick()
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
             .clickable(enabled = enabled) { onClick() }
             .background(if (isFocused) Color.White else Color.Transparent),
         contentAlignment = Alignment.Center
@@ -355,4 +455,9 @@ fun formatTime(milliseconds: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%02d:%02d".format(minutes, seconds)
+}
+
+fun formatTimeOrUnknown(milliseconds: Long): String {
+    if (milliseconds <= 0L) return "--:--"
+    return formatTime(milliseconds)
 }
