@@ -4,7 +4,6 @@ import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.annotation.OptIn
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -22,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,7 +62,11 @@ fun PlayerScreen(
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackError by remember { mutableStateOf<String?>(null) }
     
-    val controlsFocusRequester = remember { FocusRequester() }
+    val seekbarFocusRequester = remember { FocusRequester() }
+    val playPauseFocusRequester = remember { FocusRequester() }
+    val rewindFocusRequester = remember { FocusRequester() }
+    val forwardFocusRequester = remember { FocusRequester() }
+    val settingsFocusRequester = remember { FocusRequester() }
     val screenFocusRequester = remember { FocusRequester() }
 
     // Listen to exoPlayer play state changes
@@ -101,8 +105,8 @@ fun PlayerScreen(
         screenFocusRequester.requestFocus()
     }
 
-    LaunchedEffect(lastInteraction, isPlaying, showControls) {
-        if (isPlaying && showControls) {
+    LaunchedEffect(lastInteraction, showControls) {
+        if (showControls) {
             delay(3000)
             if (System.currentTimeMillis() - lastInteraction >= 3000) {
                 showControls = false
@@ -113,7 +117,7 @@ fun PlayerScreen(
 
     LaunchedEffect(showControls) {
         if (showControls) {
-            controlsFocusRequester.requestFocus() // Return focus to controls when shown
+            playPauseFocusRequester.requestFocus() // Return focus to controls when shown
         } else {
             screenFocusRequester.requestFocus()
         }
@@ -236,7 +240,9 @@ fun PlayerScreen(
                 PlayerSeekBar(
                     exoPlayer = exoPlayer,
                     onInteraction = { lastInteraction = System.currentTimeMillis() },
-                    showControls = showControls // Only allow focus if shown
+                    showControls = showControls,
+                    focusRequester = seekbarFocusRequester,
+                    downRequester = playPauseFocusRequester
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -254,7 +260,12 @@ fun PlayerScreen(
                                 if (isPlaying) exoPlayer.pause() else exoPlayer.play() 
                             },
                             isPrimary = true,
-                            modifier = Modifier.focusRequester(controlsFocusRequester),
+                            modifier = Modifier.focusRequester(playPauseFocusRequester),
+                            focusProps = {
+                                up = seekbarFocusRequester
+                                right = rewindFocusRequester
+                                left = FocusRequester.Cancel
+                            },
                             enabled = showControls
                         )
                         Spacer(modifier = Modifier.width(12.dp))
@@ -264,6 +275,12 @@ fun PlayerScreen(
                                 lastInteraction = System.currentTimeMillis()
                                 val next = (exoPlayer.currentPosition - 10000).coerceAtLeast(0L)
                                 exoPlayer.seekTo(next)
+                            },
+                            modifier = Modifier.focusRequester(rewindFocusRequester),
+                            focusProps = {
+                                up = seekbarFocusRequester
+                                left = playPauseFocusRequester
+                                right = forwardFocusRequester
                             },
                             enabled = showControls
                         )
@@ -277,6 +294,12 @@ fun PlayerScreen(
                                 val next = (exoPlayer.currentPosition + 10000).coerceAtMost(safeDuration)
                                 exoPlayer.seekTo(next)
                             },
+                            modifier = Modifier.focusRequester(forwardFocusRequester),
+                            focusProps = {
+                                up = seekbarFocusRequester
+                                left = rewindFocusRequester
+                                right = settingsFocusRequester
+                            },
                             enabled = showControls
                         )
                     }
@@ -284,6 +307,12 @@ fun PlayerScreen(
                     PlayerButton(
                         icon = PlayerIcons.Settings, 
                         onClick = { lastInteraction = System.currentTimeMillis() },
+                        modifier = Modifier.focusRequester(settingsFocusRequester),
+                        focusProps = {
+                            up = seekbarFocusRequester
+                            left = forwardFocusRequester
+                            right = FocusRequester.Cancel
+                        },
                         enabled = showControls
                     )
                 }
@@ -297,7 +326,9 @@ fun PlayerScreen(
 fun PlayerSeekBar(
     exoPlayer: ExoPlayer, 
     onInteraction: () -> Unit,
-    showControls: Boolean
+    showControls: Boolean,
+    focusRequester: FocusRequester,
+    downRequester: FocusRequester
 ) {
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
@@ -315,19 +346,20 @@ fun PlayerSeekBar(
         }
     }
 
-    var isProgressFocused by remember { mutableStateOf(false) }
-    val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 3.dp)
-    val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 14.dp else 0.dp)
+    val barHeight = 4.dp
+    val dotSize = 12.dp
     
     val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
     // Don't animate the progress bar filling, as it fights with the user seeking
     val animatedProgress = progress.coerceIn(0f, 1f)
+    val containerHeight = 18.dp
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .focusProperties { down = downRequester }
             .onFocusChanged { 
-                isProgressFocused = it.isFocused 
                 if (it.isFocused) onInteraction()
             }
             .onKeyEvent { keyEvent ->
@@ -370,24 +402,35 @@ fun PlayerSeekBar(
                 fontFamily = SpaceGrotesk
             )
             Spacer(modifier = Modifier.width(10.dp))
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
-                    .height(16.dp),
+                    .height(containerHeight),
                 contentAlignment = Alignment.CenterStart
             ) {
-                Box(modifier = Modifier.fillMaxWidth().height(barHeight).clip(CircleShape).background(ProgressTrack))
-                Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(barHeight).background(ProgressFill))
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val dotOffset = (maxWidth - dotSize) * animatedProgress
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(barHeight)
+                        .clip(CircleShape)
+                        .background(ProgressTrack)
+                ) {
                     Box(
                         modifier = Modifier
-                            .offset(x = dotOffset)
-                            .size(dotSize)
-                            .clip(CircleShape)
-                            .background(Color.White)
+                            .fillMaxWidth(animatedProgress)
+                            .fillMaxHeight()
+                            .background(ProgressFill)
                     )
                 }
+                val dotOffset = (maxWidth - dotSize) * animatedProgress
+                val dotYOffset = (containerHeight - dotSize) / 2
+                Box(
+                    modifier = Modifier
+                        .offset(x = dotOffset, y = dotYOffset)
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
             }
             Spacer(modifier = Modifier.width(10.dp))
             Text(
@@ -406,7 +449,8 @@ fun PlayerButton(
     onClick: () -> Unit,
     isPrimary: Boolean = false,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    focusProps: (androidx.compose.ui.focus.FocusProperties.() -> Unit)? = null
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val size = if (isPrimary) 44.dp else 40.dp
@@ -418,6 +462,7 @@ fun PlayerButton(
             .scale(scale)
             .size(size)
             .clip(CircleShape)
+            .focusProperties { focusProps?.invoke(this) }
             .onFocusChanged { isFocused = it.isFocused }
             .focusable(enabled)
             .onKeyEvent { keyEvent ->
