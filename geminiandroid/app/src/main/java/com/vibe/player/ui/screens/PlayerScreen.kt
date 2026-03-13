@@ -5,6 +5,7 @@ package com.vibe.player.ui.screens
 import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -335,6 +336,7 @@ fun PlayerSeekBar(
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     var lastSeekTime by remember { mutableLongStateOf(0L) }
+    var isProgressFocused by remember { mutableStateOf(false) }
 
     LaunchedEffect(exoPlayer) {
         while (true) {
@@ -348,13 +350,13 @@ fun PlayerSeekBar(
         }
     }
 
-    val barHeight = 4.dp
-    val dotSize = 12.dp
+    val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 3.dp)
+    val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 14.dp else 0.dp)
     
     val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
     // Don't animate the progress bar filling, as it fights with the user seeking
     val animatedProgress = progress.coerceIn(0f, 1f)
-    val containerHeight = 18.dp
+    val containerHeight = 16.dp
 
     Column(
         modifier = Modifier
@@ -362,6 +364,7 @@ fun PlayerSeekBar(
             .focusRequester(focusRequester)
             .focusProperties { down = downRequester }
             .onFocusChanged { 
+                isProgressFocused = it.isFocused
                 if (it.isFocused) onInteraction()
             }
             .onKeyEvent { keyEvent ->
@@ -421,6 +424,7 @@ fun PlayerSeekBar(
                         modifier = Modifier
                             .fillMaxWidth(animatedProgress)
                             .fillMaxHeight()
+                            .clip(CircleShape)
                             .background(ProgressFill)
                     )
                 }
