@@ -143,7 +143,7 @@ fun PlayerScreen(
                     val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 3.dp)
                     val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 14.dp else 0.dp)
                     
-                    val progress = if (duration > 0) currentPosition. LeonardFloat() / duration.toFloat() else 0f
+                    val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
                     val animatedProgress by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), animationSpec = tween(150))
 
                     Column(
