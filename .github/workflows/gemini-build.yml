@@ -51,7 +51,7 @@ jobs:
         tag_name: "latest-dev"
         body: "Automated build from the latest push to the gemini branch. Generated on ${{ github.event.head_commit.timestamp }}."
         draft: false
-        prerelease: true
+        prerelease: false
         make_latest: true
         overwrite_files: true # Overwrites the previous "latest-dev" asset
 
