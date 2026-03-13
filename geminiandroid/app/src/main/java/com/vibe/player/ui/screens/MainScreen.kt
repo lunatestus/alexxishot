@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen() {
-    var currentPath by remember { mutableStateOf("/") }
+    var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
     var isListView by remember { mutableStateOf(true) }
@@ -65,7 +65,7 @@ fun MainScreen() {
     }
 
     LaunchedEffect(Unit) {
-        items = ApiClient.fetchFolder("/")
+        items = ApiClient.fetchFolder("/media")
         isLoading = false
     }
 
