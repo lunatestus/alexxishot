@@ -9,6 +9,8 @@ import java.net.URLEncoder
 
 object ApiClient {
     private const val TUNNEL_ENDPOINT = "https://lunatestus003--vibe-backend-tunnel.modal.run"
+    // Using a standard Chrome/Android User-Agent to avoid Cloudflare/Modal blocking
+    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36"
 
     private var cachedBaseUrl: String? = null
     var lastError: String? = null
@@ -17,10 +19,10 @@ object ApiClient {
         cachedBaseUrl?.let { return@withContext it }
         try {
             val conn = URL(TUNNEL_ENDPOINT).openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "VibePlayer/1.0")
+            conn.setRequestProperty("User-Agent", USER_AGENT)
             conn.setRequestProperty("Accept", "application/json")
-            conn.connectTimeout = 15000
-            conn.readTimeout = 15000
+            conn.connectTimeout = 20000
+            conn.readTimeout = 20000
             
             val code = conn.responseCode
             if (code == 200) {
@@ -34,13 +36,13 @@ object ApiClient {
                         return@withContext url
                     }
                 }
-                lastError = "Tunnel reported status: ${json.optString("status")}"
+                lastError = "Tunnel status: ${json.optString("status")}"
             } else {
-                lastError = "Tunnel error code: $code"
+                lastError = "Tunnel HTTP $code"
                 conn.disconnect()
             }
         } catch (e: Exception) {
-            lastError = "Tunnel connection failed: ${e.message}"
+            lastError = "Socket: ${e.message}"
             e.printStackTrace()
         }
         null
@@ -49,18 +51,15 @@ object ApiClient {
     suspend fun fetchFolder(path: String): List<FileItem> = withContext(Dispatchers.IO) {
         lastError = null
         val base = getBaseUrl() 
-        if (base == null) {
-            // lastError is already set by getBaseUrl
-            return@withContext emptyList()
-        }
+        if (base == null) return@withContext emptyList()
         
         try {
             val encodedPath = URLEncoder.encode(path, "UTF-8")
             val conn = URL("$base/list?path=$encodedPath").openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", "VibePlayer/1.0")
+            conn.setRequestProperty("User-Agent", USER_AGENT)
             conn.setRequestProperty("Accept", "application/json")
-            conn.connectTimeout = 15000
-            conn.readTimeout = 15000
+            conn.connectTimeout = 20000
+            conn.readTimeout = 20000
             
             val code = conn.responseCode
             if (code == 200) {
@@ -78,14 +77,14 @@ object ApiClient {
                         result.add(FileItem(type = type, name = name, path = itemPath))
                     }
                 }
-                if (result.isEmpty()) { lastError = "Folder is empty" }
+                if (result.isEmpty()) { lastError = "Empty folder" }
                 return@withContext result
             } else {
-                lastError = "API error code: $code"
+                lastError = "API HTTP $code"
                 conn.disconnect()
             }
         } catch (e: Exception) {
-            lastError = "API connection failed: ${e.message}"
+            lastError = "API error: ${e.message}"
             e.printStackTrace()
         }
         emptyList()
