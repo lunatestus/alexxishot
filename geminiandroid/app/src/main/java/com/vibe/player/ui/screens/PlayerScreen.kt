@@ -21,6 +21,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -410,7 +411,8 @@ fun PlayerSeekBar(
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
-                    .height(containerHeight),
+                    .height(containerHeight)
+                    .clipToBounds(),
                 contentAlignment = Alignment.CenterStart
             ) {
                 Box(
@@ -428,11 +430,10 @@ fun PlayerSeekBar(
                             .background(ProgressFill)
                     )
                 }
-                val dotOffset = (maxWidth - dotSize) * animatedProgress
-                val dotYOffset = (containerHeight - dotSize) / 2
+                val dotOffset = maxWidth * animatedProgress - dotSize / 2
                 Box(
                     modifier = Modifier
-                        .offset(x = dotOffset, y = dotYOffset)
+                        .offset(x = dotOffset)
                         .size(dotSize)
                         .clip(CircleShape)
                         .background(Color.White)
