@@ -1,6 +1,5 @@
 package com.vibe.player.ui.components
 
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -16,11 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,12 +45,14 @@ fun Sidebar(
         NavItem("Settings", "settings", Icons.Default.Settings)
     )
 
-    val width by animateDpAsState(targetValue = if (isExpanded) 200.dp else 64.dp)
+    val expandedWidth = 200.dp
+    val collapsedWidth = 64.dp
 
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(width)
+            .width(if (isExpanded) expandedWidth else collapsedWidth)
+            .clipToBounds()
             .background(SidebarBg)
             .focusRequester(focusRequester)
             .onFocusChanged { onFocusChange(it.hasFocus) }

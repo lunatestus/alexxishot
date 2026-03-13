@@ -1,7 +1,6 @@
 package com.vibe.player.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -30,7 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.FocusRequester
@@ -38,6 +36,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -87,9 +86,8 @@ fun MainScreen() {
         loadPath("/media")
     }
 
-    LaunchedEffect(items, isListView, isSidebarFocused, shouldRequestContentFocus, isLoading) {
+    LaunchedEffect(isLoading, shouldRequestContentFocus) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
-            // Give layout a tiny moment to render the new list/grid before requesting focus
             kotlinx.coroutines.delay(100)
             firstItemFocusRequester.requestFocus()
             shouldRequestContentFocus = false
@@ -106,8 +104,8 @@ fun MainScreen() {
         }
     }
 
-    val contentAlpha by animateFloatAsState(targetValue = if (isSidebarFocused) 0.5f else 1f)
-    val contentParallax by animateDpAsState(targetValue = if (isSidebarFocused) 24.dp else 0.dp)
+    val contentAlpha by animateFloatAsState(targetValue = if (isSidebarFocused) 0.5f else 1f, animationSpec = tween(200))
+    val contentTranslation by animateFloatAsState(targetValue = if (isSidebarFocused) 72f else 0f, animationSpec = tween(200))
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         // Content Area
@@ -115,8 +113,10 @@ fun MainScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(start = 64.dp)
-                .offset(x = contentParallax)
-                .alpha(contentAlpha)
+                .graphicsLayer {
+                    translationX = contentTranslation
+                    alpha = contentAlpha
+                }
                 .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp)
         ) {
             // Header

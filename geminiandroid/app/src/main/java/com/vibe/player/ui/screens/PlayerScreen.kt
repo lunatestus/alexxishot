@@ -430,7 +430,7 @@ fun PlayerSeekBar(
                             .background(ProgressFill)
                     )
                 }
-                val dotOffset = maxWidth * animatedProgress - dotSize / 2
+                val dotOffset = (maxWidth * animatedProgress - dotSize / 2).coerceAtLeast(0.dp)
                 Box(
                     modifier = Modifier
                         .offset(x = dotOffset)
