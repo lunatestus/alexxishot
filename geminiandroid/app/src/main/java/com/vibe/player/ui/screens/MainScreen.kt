@@ -148,9 +148,10 @@ fun MainScreen() {
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentColor, modifier = Modifier.size(48.dp))
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
                 }
-            } else if (errorMessage != null && errorMessage != "Empty folder") {
+            }
+ else if (errorMessage != null && errorMessage != "Empty folder") {
                 Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text("Error: $errorMessage", color = Color.Red, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(20.dp))
                     Button(
