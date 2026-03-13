@@ -1,10 +1,8 @@
 package com.vibe.player.ui.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,12 +33,6 @@ fun MediaCard(
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    var visible by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(index * 30L)
-        visible = true
-    }
 
     val scale by animateFloatAsState(
         targetValue = if (isFocused && !isListView) 1.05f else 1f,
@@ -54,30 +46,26 @@ fun MediaCard(
         label = "borderColor"
     )
 
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(tween(300))
-    ) {
-        val modifier = Modifier
-            .zIndex(if (isFocused) 1f else 0f)
-            .scale(scale)
-            .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
-            .clickable { onClick() }
-            .clip(RoundedCornerShape(10.dp))
-            .border(
-                width = if (isFocused) 2.dp else 0.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(10.dp)
-            )
+    val modifier = Modifier
+        .zIndex(if (isFocused) 1f else 0f)
+        .scale(scale)
+        .onFocusChanged { isFocused = it.isFocused }
+        .focusable()
+        .clickable { onClick() }
+        .clip(RoundedCornerShape(10.dp))
+        .border(
+            width = if (isFocused) 2.dp else 0.dp,
+            color = borderColor,
+            shape = RoundedCornerShape(10.dp)
+        )
 
-        if (isListView) {
-            Row(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .background(CardBg)
-                    .padding(10.dp, 12.dp),
+    if (isListView) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(80.dp)
+                .background(CardBg)
+                .padding(10.dp, 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -169,5 +157,5 @@ fun MediaCard(
                 }
             }
         }
-    }
+
 }

@@ -51,7 +51,11 @@ image = (
         "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared",
         "chmod +x /usr/local/bin/cloudflared",
     )
-    .add_local_file("terminal.html", "/app/terminal.html", copy=True)
+    .add_local_file(
+        os.path.join(os.path.dirname(__file__), "terminal.html"),
+        "/app/terminal.html",
+        copy=True,
+    )
 )
 
 app = modal.App(APP_NAME, image=image)
@@ -71,7 +75,9 @@ def _resolve_path(raw_path: str) -> Path:
     return full
 
 
-def _iter_file(path: Path, start: int, length: int, chunk_size: int = 1024 * 1024) -> Iterator[bytes]:
+def _iter_file(
+    path: Path, start: int, length: int, chunk_size: int = 1024 * 1024
+) -> Iterator[bytes]:
     with path.open("rb") as f:
         f.seek(start)
         remaining = length
@@ -137,7 +143,9 @@ def create_api_app():
             raise HTTPException(status_code=400, detail="Path is not a directory")
 
         items = []
-        for entry in sorted(target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())):
+        for entry in sorted(
+            target.iterdir(), key=lambda e: (not e.is_dir(), e.name.lower())
+        ):
             rel_path = "/" + entry.relative_to(MEDIA_ROOT).as_posix()
             items.append(
                 {
@@ -244,7 +252,12 @@ def create_api_app():
                         try:
                             data = os.read(fd, 4096)
                             if data:
-                                await websocket.send_json({"type": "output", "data": data.decode("utf-8", errors="replace")})
+                                await websocket.send_json(
+                                    {
+                                        "type": "output",
+                                        "data": data.decode("utf-8", errors="replace"),
+                                    }
+                                )
                             else:
                                 break
                         except OSError:
@@ -298,7 +311,6 @@ def create_api_app():
     volumes={MOUNT_PATH: media_volume},
     env={"HOME": f"{MOUNT_PATH}/.home"},
 )
-@modal.concurrent(max_inputs=32)
 def run():
     import threading
     import urllib.request
@@ -373,7 +385,9 @@ def run():
         if not url_found:
             tunnel_ready.set()
 
-    capture_thread = threading.Thread(target=capture_cf_url, args=(cf_proc,), daemon=True)
+    capture_thread = threading.Thread(
+        target=capture_cf_url, args=(cf_proc,), daemon=True
+    )
     capture_thread.start()
 
     tunnel_ready.wait(timeout=20)
@@ -404,11 +418,16 @@ def launch():
 
     state, err = _read_runtime_state()
     if err:
-        return JSONResponse({"error": str(err)}, status_code=500, headers=_no_cache_headers())
+        return JSONResponse(
+            {"error": str(err)}, status_code=500, headers=_no_cache_headers()
+        )
 
     now_ts = time.time()
     launch_ts = state.get("launching")
-    launch_lock_active = isinstance(launch_ts, (int, float)) and (now_ts - launch_ts) < START_LOCK_TTL_SECONDS
+    launch_lock_active = (
+        isinstance(launch_ts, (int, float))
+        and (now_ts - launch_ts) < START_LOCK_TTL_SECONDS
+    )
     should_spawn = not launch_lock_active and not _is_run_alive(state, now_ts)
 
     if should_spawn:
@@ -420,7 +439,11 @@ def launch():
         except Exception as e:
             cf_url_store["status"] = "failed"
             cf_url_store.pop("launching", None)
-            return JSONResponse({"error": f"Failed to launch: {e}"}, status_code=500, headers=_no_cache_headers())
+            return JSONResponse(
+                {"error": f"Failed to launch: {e}"},
+                status_code=500,
+                headers=_no_cache_headers(),
+            )
 
     return JSONResponse(
         {"status": cf_url_store.get("status", "starting")},
@@ -436,11 +459,15 @@ def tunnel():
 
     state, err = _read_runtime_state()
     if err:
-        return JSONResponse({"error": str(err)}, status_code=500, headers=_no_cache_headers())
+        return JSONResponse(
+            {"error": str(err)}, status_code=500, headers=_no_cache_headers()
+        )
 
     now_ts = time.time()
     if _has_live_url(state, now_ts) and state.get("status") == "running":
-        return JSONResponse({"url": state["url"], "status": "running"}, headers=_no_cache_headers())
+        return JSONResponse(
+            {"url": state["url"], "status": "running"}, headers=_no_cache_headers()
+        )
 
     if state.get("url") and not _has_live_url(state, now_ts):
         cf_url_store.pop("url", None)
@@ -459,7 +486,9 @@ def terminal_redirect():
 
     state, err = _read_runtime_state()
     if err:
-        return JSONResponse({"error": str(err)}, status_code=500, headers=_no_cache_headers())
+        return JSONResponse(
+            {"error": str(err)}, status_code=500, headers=_no_cache_headers()
+        )
 
     now_ts = time.time()
     if _has_live_url(state, now_ts) and state.get("status") == "running":

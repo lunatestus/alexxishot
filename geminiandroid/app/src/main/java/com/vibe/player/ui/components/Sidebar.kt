@@ -6,8 +6,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Movie
@@ -84,10 +82,10 @@ fun Sidebar(
         
         Spacer(modifier = Modifier.height(1.dp).fillMaxWidth().background(SidebarBorder))
 
-        LazyColumn(
+        Column(
             modifier = Modifier.padding(top = 16.dp)
         ) {
-            itemsIndexed(navItems) { index, item ->
+            navItems.forEachIndexed { index, item ->
                 var isFocused by remember { mutableStateOf(false) }
                 
                 Row(
