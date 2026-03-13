@@ -53,7 +53,7 @@ jobs:
         draft: false
         prerelease: true
         make_latest: true
-        allow_updates: true # Overwrites the previous "latest-dev" asset
+        overwrite_files: true # Overwrites the previous "latest-dev" asset
 
     - name: Create Versioned Release
       if: startsWith(github.ref, 'refs/tags/v')
