@@ -1,5 +1,12 @@
 package com.vibe.player.ui.screens
 
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -37,6 +44,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
+import com.vibe.player.data.UpdateManager
 import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
@@ -52,6 +61,7 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen() {
+    val context = LocalContext.current
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
@@ -61,6 +71,9 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
+    var updateDownloadId by remember { mutableStateOf<Long?>(null) }
+
+    val updateUrl = "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk"
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -92,6 +105,27 @@ fun MainScreen() {
             firstItemFocusRequester.requestFocus()
             shouldRequestContentFocus = false
         }
+    }
+
+    DisposableEffect(updateDownloadId) {
+        if (updateDownloadId == null) return@DisposableEffect onDispose {}
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action != DownloadManager.ACTION_DOWNLOAD_COMPLETE) return
+                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                if (id == updateDownloadId) {
+                    UpdateManager.handleDownloadComplete(context, id)
+                    updateDownloadId = null
+                }
+            }
+        }
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose { context.unregisterReceiver(receiver) }
     }
 
     BackHandler(enabled = history.isNotEmpty() || playingItem != null) {
@@ -223,6 +257,12 @@ fun MainScreen() {
             onNavClick = { id ->
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
+                } else if (id == "update") {
+                    if (updateDownloadId != null) {
+                        Toast.makeText(context, "Update already downloading", Toast.LENGTH_SHORT).show()
+                    } else {
+                        updateDownloadId = UpdateManager.startUpdateDownload(context, updateUrl)
+                    }
                 }
             }
         )

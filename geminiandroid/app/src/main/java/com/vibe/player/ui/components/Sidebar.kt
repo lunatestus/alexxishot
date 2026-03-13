@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -42,6 +43,7 @@ fun Sidebar(
         NavItem("Home", "home", Icons.Default.Home),
         NavItem("Movies", "movies", Icons.Default.Movie),
         NavItem("TV Shows", "tv", Icons.Default.Tv),
+        NavItem("Update", "update", Icons.Default.SystemUpdate),
         NavItem("Settings", "settings", Icons.Default.Settings)
     )
 
@@ -109,17 +111,18 @@ fun Sidebar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
                 ) {
+                    val contentTint = if (isFocused) Color.Black else TextColor
                     Icon(
                         imageVector = item.icon,
                         contentDescription = null,
-                        tint = TextColor,
+                        tint = contentTint,
                         modifier = Modifier.size(22.dp)
                     )
                     if (isExpanded) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = item.label,
-                            color = TextColor,
+                            color = contentTint,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
