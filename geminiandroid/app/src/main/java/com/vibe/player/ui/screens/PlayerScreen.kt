@@ -32,7 +32,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioToolbar
 import androidx.media3.ui.PlayerView
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.theme.*
