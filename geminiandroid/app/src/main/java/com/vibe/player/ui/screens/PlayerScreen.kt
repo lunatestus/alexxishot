@@ -117,8 +117,10 @@ fun PlayerScreen(
                             lastInteraction = System.currentTimeMillis()
                             if (!showControls) {
                                 showControls = true
+                                true
+                            } else {
+                                false
                             }
-                            true
                         }
                     }
                 } else {
@@ -233,10 +235,14 @@ fun PlayerSeekBar(
 ) {
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
+    var lastSeekTime by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(exoPlayer) {
         while (true) {
-            currentPosition = exoPlayer.currentPosition
+            // Don't update from player if user is actively seeking (debounce)
+            if (System.currentTimeMillis() - lastSeekTime > 500) {
+                currentPosition = exoPlayer.currentPosition
+            }
             duration = exoPlayer.duration.coerceAtLeast(1L)
             delay(250) // Reduced refresh rate to save CPU
         }
@@ -259,22 +265,25 @@ fun PlayerSeekBar(
             }
             .onKeyEvent { keyEvent ->
                 onInteraction()
-                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                    when (keyEvent.nativeKeyEvent.keyCode) {
-                        KeyEvent.KEYCODE_DPAD_LEFT -> {
-                            // Calculate based on the local state, not the exoPlayer which might lag
-                            val newPos = (currentPosition - 15000).coerceAtLeast(0L)
-                            currentPosition = newPos
-                            exoPlayer.seekTo(newPos)
-                            true
-                        }
-                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                            val newPos = (currentPosition + 15000).coerceAtMost(duration)
-                            currentPosition = newPos
-                            exoPlayer.seekTo(newPos)
-                            true
-                        }
-                        else -> false
+                
+                val isLeft = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+                val isRight = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+                
+                if (isLeft || isRight) {
+                    val offset = if (isLeft) -15000L else 15000L
+                    
+                    if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        lastSeekTime = System.currentTimeMillis()
+                        // Rapidly update local UI state without blocking main thread
+                        currentPosition = (currentPosition + offset).coerceIn(0L, duration)
+                        true
+                    } else if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
+                        lastSeekTime = System.currentTimeMillis()
+                        // Commit the final position to ExoPlayer once user releases the button
+                        exoPlayer.seekTo(currentPosition)
+                        true
+                    } else {
+                        false
                     }
                 } else false
             }
@@ -328,7 +337,6 @@ fun PlayerButton(
             .size(size)
             .clip(CircleShape)
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable(enabled)
             .clickable(enabled = enabled) { onClick() }
             .background(if (isFocused) Color.White else Color.Transparent),
         contentAlignment = Alignment.Center
