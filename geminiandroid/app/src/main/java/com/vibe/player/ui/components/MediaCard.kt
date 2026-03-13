@@ -81,7 +81,7 @@ fun MediaCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Vibe",
+                        text = item.type.uppercase(),
                         color = Color(0x33FFFFFF),
                         fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
@@ -101,12 +101,6 @@ fun MediaCard(
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = DmSans
                     )
-                    Text(
-                        text = item.type.uppercase(),
-                        color = Color(0xFFAAAAAA),
-                        fontSize = 12.sp,
-                        fontFamily = DmSans
-                    )
                 }
             }
         } else {
@@ -122,7 +116,7 @@ fun MediaCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Vibe",
+                        text = item.type.uppercase(),
                         color = Color(0x33FFFFFF),
                         fontWeight = FontWeight.Medium,
                         fontSize = 28.sp,
@@ -150,12 +144,6 @@ fun MediaCard(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        fontFamily = DmSans
-                    )
-                    Text(
-                        text = item.type.uppercase(),
-                        color = Color(0xFFAAAAAA),
-                        fontSize = 11.sp,
                         fontFamily = DmSans
                     )
                 }
