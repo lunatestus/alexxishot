@@ -42,8 +42,8 @@ fun Sidebar(
         NavItem("Settings", "settings", PlayerIcons.Settings)
     )
 
-    val expandedWidth = 200.dp
-    val collapsedWidth = 64.dp
+    val expandedWidth = 180.dp
+    val collapsedWidth = 56.dp
 
     Column(
         modifier = Modifier
@@ -90,7 +90,7 @@ fun Sidebar(
                         }
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
-                        .padding(horizontal = if (isExpanded) 20.dp else 16.dp, vertical = 12.dp),
+                        .padding(horizontal = if (isExpanded) 16.dp else 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
                 ) {
@@ -99,14 +99,14 @@ fun Sidebar(
                         imageVector = item.icon,
                         contentDescription = null,
                         tint = contentTint,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     if (isExpanded) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = item.label,
                             color = contentTint,
-                            fontSize = 15.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Medium,
                             maxLines = 1,
                             fontFamily = DmSans

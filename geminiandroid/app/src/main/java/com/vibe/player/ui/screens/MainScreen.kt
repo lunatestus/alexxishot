@@ -118,33 +118,33 @@ fun MainScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 64.dp)
+                .padding(start = 56.dp)
                 .graphicsLayer {
                     translationX = contentTranslation
                     alpha = contentAlpha
                 }
-                .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp)
+                .padding(top = 16.dp, start = 16.dp, bottom = 16.dp, end = 24.dp)
         ) {
             // Header
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 20.dp),
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
+                    Text(text = "MovieApp", color = TextColor, fontSize = 16.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
                     Spacer(modifier = Modifier.width(14.dp))
                     if (currentPath != "/") {
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(CardBg)
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "/ ${currentPath.removePrefix("/")}",
                                 color = BreadcrumbColor,
-                                fontSize = 13.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = DmSans
                             )
@@ -175,7 +175,7 @@ fun MainScreen() {
                     }
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(32.dp)
                             .clip(RoundedCornerShape(10.dp))
                         .background(CardBg)
                         .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
@@ -191,7 +191,7 @@ fun MainScreen() {
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
+                    Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(16.dp))
                 }
             }
             }
@@ -218,7 +218,7 @@ fun MainScreen() {
                     Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = DmSans)
                 }
             } else if (isListView) {
-                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(14.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items) { index, item ->
                         MediaCard(
                             item = item, 
@@ -233,7 +233,7 @@ fun MainScreen() {
                     }
                 }
             } else {
-                LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 220.dp), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+                LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items) { index, item ->
                         MediaCard(
                             item = item, 

@@ -67,14 +67,14 @@ fun MediaCard(
         Row(
             modifier = cardModifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(64.dp)
                 .background(CardBg)
-                .padding(10.dp, 12.dp),
+                .padding(10.dp, 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
                     modifier = Modifier
-                        .width(120.dp)
+                        .width(100.dp)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFF0044CC)),
@@ -84,7 +84,7 @@ fun MediaCard(
                         text = item.type.uppercase(),
                         color = Color(0x33FFFFFF),
                         fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                         fontFamily = DmSans
                     )
                 }
@@ -97,7 +97,7 @@ fun MediaCard(
                     Text(
                         text = item.name,
                         color = TextColor,
-                        fontSize = 16.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         fontFamily = DmSans
                     )
@@ -119,7 +119,7 @@ fun MediaCard(
                         text = item.type.uppercase(),
                         color = Color(0x33FFFFFF),
                         fontWeight = FontWeight.Medium,
-                        fontSize = 28.sp,
+                        fontSize = 22.sp,
                         fontFamily = DmSans
                     )
                 }
@@ -141,7 +141,7 @@ fun MediaCard(
                     Text(
                         text = item.name,
                         color = TextColor,
-                        fontSize = 15.sp,
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         fontFamily = DmSans
