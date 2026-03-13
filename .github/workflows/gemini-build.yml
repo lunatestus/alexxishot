@@ -18,13 +18,19 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: wrapper
+        # The cache-read-only property can be used for PRs if needed
+        # cache-read-only: ${{ github.event_name == 'pull_request' }}
 
     - name: Build with Gradle
       run: |
         cd geminiandroid
-        # Pin Gradle to 8.6 to ensure compatibility with AGP 8.2.2
-        gradle wrapper --gradle-version 8.6
+        # Using the wrapper committed in the repo
+        chmod +x gradlew || true
         ./gradlew assembleDebug
 
     - name: Upload APK
