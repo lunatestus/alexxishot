@@ -55,33 +55,6 @@ fun Sidebar(
             .onFocusChanged { onFocusChange(it.hasFocus) }
             .padding(top = 24.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = if (isExpanded) 20.dp else 10.dp, vertical = 15.dp),
-            contentAlignment = if (isExpanded) Alignment.CenterStart else Alignment.Center
-        ) {
-            if (isExpanded) {
-                Text(
-                    text = "Vibe Player",
-                    color = TextColor,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    fontFamily = DmSans
-                )
-            } else {
-                Icon(
-                    imageVector = PlayerIcons.Movies,
-                    contentDescription = null,
-                    tint = TextColor,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(1.dp).fillMaxWidth().background(SidebarBorder))
-
         Column(
             modifier = Modifier.padding(top = 16.dp)
         ) {
