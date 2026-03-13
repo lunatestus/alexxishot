@@ -71,7 +71,7 @@ fun Sidebar(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Default.Movie,
+                    imageVector = PlayerIcons.Movies,
                     contentDescription = null,
                     tint = TextColor,
                     modifier = Modifier.size(24.dp)
