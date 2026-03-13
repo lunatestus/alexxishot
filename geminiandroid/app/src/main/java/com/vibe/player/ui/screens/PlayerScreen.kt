@@ -1,5 +1,8 @@
 package com.vibe.player.ui.screens
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -17,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -45,7 +49,7 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Text("VIDEO CONTENT", color = Color.DarkGray, fontSize = 40.sp, fontWeight = FontWeight.Bold)
+            Text("VIDEO CONTENT", color = Color.DarkGray, fontSize = 40.sp, fontWeight = FontWeight.Bold, fontFamily = SpaceGrotesk)
         }
 
         // HUD Overlay
@@ -69,13 +73,18 @@ fun PlayerScreen(
                     text = item.name,
                     color = TextColor,
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceGrotesk
                 )
                 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Progress Bar
+                // Progress Bar with Scrubber Dot
                 var isProgressFocused by remember { mutableStateOf(false) }
+                val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 10.dp else 6.dp)
+                val dotAlpha by animateFloatAsState(targetValue = if (isProgressFocused) 1f else 0f)
+                val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 24.dp else 14.dp)
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -86,25 +95,47 @@ fun PlayerScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (isProgressFocused) 10.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(ProgressTrack)
+                            .height(24.dp), // Height to accommodate dot
+                        contentAlignment = Alignment.CenterStart
                     ) {
+                        // Track
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(barHeight)
+                                .clip(CircleShape)
+                                .background(ProgressTrack)
+                        )
+                        // Fill
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(progress)
-                                .fillMaxHeight()
+                                .height(barHeight)
                                 .background(ProgressFill)
                         )
+                        
+                        // Dot positioning with weight
+                        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(modifier = Modifier.weight(progress.coerceAtLeast(0.001f)))
+                            Box(
+                                modifier = Modifier
+                                    .size(dotSize)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .scale(dotAlpha)
+                            )
+                            Spacer(modifier = Modifier.weight((1f - progress).coerceAtLeast(0.001f)))
+                        }
                     }
+                    
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("00:12", color = Color(0xCCFFFFFF), fontSize = 16.sp)
-                        Text("04:36", color = Color(0xCCFFFFFF), fontSize = 16.sp)
+                        Text("00:12", color = Color(0xCCFFFFFF), fontSize = 16.sp, fontFamily = SpaceGrotesk)
+                        Text("04:36", color = Color(0xCCFFFFFF), fontSize = 16.sp, fontFamily = SpaceGrotesk)
                     }
                 }
 
@@ -155,8 +186,11 @@ fun PlayerButton(
     var isFocused by remember { mutableStateOf(false) }
     val size = if (isPrimary) 72.dp else 56.dp
     
+    val scale by animateFloatAsState(targetValue = if (isFocused) 1.12f else 1f)
+
     Box(
         modifier = Modifier
+            .scale(scale)
             .then(if (label != null) Modifier.wrapContentWidth() else Modifier.size(size))
             .then(if (label != null) Modifier.height(56.dp) else Modifier)
             .clip(CircleShape)
@@ -180,7 +214,8 @@ fun PlayerButton(
                     text = label,
                     color = if (isFocused) Color.Black else Color.White,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceGrotesk
                 )
             }
         }

@@ -1,6 +1,8 @@
 package com.vibe.player.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,14 +15,15 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -57,6 +60,13 @@ fun MainScreen() {
         }
     }
 
+    // Dimming animation for content
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (isSidebarFocused) 0.5f else 1f,
+        animationSpec = tween(durationMillis = 300),
+        label = "contentAlpha"
+    )
+
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
         Row(modifier = Modifier.fillMaxSize()) {
             // Sidebar
@@ -70,7 +80,8 @@ fun MainScreen() {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(40.dp)
+                    .alpha(contentAlpha) // Apply dimming
+                    .padding(top = 40.dp, start = 40.dp, bottom = 40.dp, end = 70.dp) // Match CSS: 40px 70px 40px 40px
             ) {
                 // Header
                 Row(
@@ -79,8 +90,9 @@ fun MainScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        // Brand Icon (Lightning Bolt)
                         Icon(
-                            imageVector = Icons.Default.Movie,
+                            imageVector = Icons.Default.ElectricBolt,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
@@ -90,14 +102,16 @@ fun MainScreen() {
                             text = "MovieApp",
                             color = TextColor,
                             fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = SpaceGrotesk
                         )
                         Spacer(modifier = Modifier.width(18.dp))
                         Text(
                             text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}",
                             color = BreadcrumbColor,
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = SpaceGrotesk
                         )
                     }
 
@@ -156,6 +170,8 @@ fun MainScreen() {
                                 if (item.type == "folder") {
                                     history = history + currentPath
                                     loadPath(item.path)
+                                    // Reset sidebar focus when navigating deep
+                                    isSidebarFocused = false
                                 } else {
                                     playingItem = item
                                 }
