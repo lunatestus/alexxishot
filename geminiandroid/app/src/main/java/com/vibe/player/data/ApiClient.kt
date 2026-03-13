@@ -16,6 +16,7 @@ object ApiClient {
         cachedBaseUrl?.let { return@withContext it }
         try {
             val conn = URL(TUNNEL_ENDPOINT).openConnection() as HttpURLConnection
+            conn.setRequestProperty("User-Agent", "VibePlayer/1.0")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
             if (conn.responseCode == 200) {
@@ -32,7 +33,9 @@ object ApiClient {
             } else {
                 conn.disconnect()
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         null
     }
 
@@ -45,6 +48,7 @@ object ApiClient {
         try {
             val encodedPath = URLEncoder.encode(path, "UTF-8")
             val conn = URL("$base/list?path=$encodedPath").openConnection() as HttpURLConnection
+            conn.setRequestProperty("User-Agent", "VibePlayer/1.0")
             conn.connectTimeout = 10000
             conn.readTimeout = 10000
             if (conn.responseCode == 200) {
@@ -66,7 +70,9 @@ object ApiClient {
             } else {
                 conn.disconnect()
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         emptyList()
     }
 

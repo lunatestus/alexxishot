@@ -148,7 +148,16 @@ fun MainScreen() {
                 }
             }
 
-            if (isListView) {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Loading media...", color = TextColor, fontSize = 18.sp, fontFamily = SpaceGrotesk)
+                }
+            } else if (items.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = SpaceGrotesk)
+                }
+            } else if (isListView) {
+
                 LazyColumn(
                     state = listState,
                     verticalArrangement = Arrangement.spacedBy(14.dp),
