@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -62,44 +64,66 @@ fun PlayerScreen(
     }
 
     var isPlaying by remember { mutableStateOf(true) }
-    var currentPosition by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
     var showControls by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    
     val focusRequester = remember { FocusRequester() }
+    val screenFocusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(exoPlayer) {
-        while (true) {
-            currentPosition = exoPlayer.currentPosition
-            duration = exoPlayer.duration.coerceAtLeast(1L)
-            isPlaying = exoPlayer.isPlaying
-            delay(100)
+    // Listen to exoPlayer play state changes
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlayingState: Boolean) {
+                isPlaying = isPlayingState
+            }
         }
-    }
-
-    LaunchedEffect(lastInteraction) {
-        delay(3000)
-        showControls = false
-    }
-
-    DisposableEffect(Unit) {
-        focusRequester.requestFocus()
-        onDispose { 
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
             exoPlayer.stop()
-            exoPlayer.release() 
+            exoPlayer.release()
         }
     }
 
+    LaunchedEffect(lastInteraction, isPlaying) {
+        if (isPlaying) {
+            delay(3000)
+            showControls = false
+            screenFocusRequester.requestFocus() // Steal focus so hidden controls don't keep it
+        }
+    }
+
+    LaunchedEffect(showControls) {
+        if (showControls) {
+            focusRequester.requestFocus() // Return focus to controls when shown
+        }
+    }
+
+    // Wrap AndroidView in a focusable box to capture D-Pad events when controls are hidden
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .onKeyEvent { 
-                lastInteraction = System.currentTimeMillis()
-                if (!showControls) {
-                    showControls = true
-                    true
-                } else false
+            .focusRequester(screenFocusRequester)
+            .focusable()
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                            onClose()
+                            true
+                        }
+                        else -> {
+                            lastInteraction = System.currentTimeMillis()
+                            if (!showControls) {
+                                showControls = true
+                            }
+                            true
+                        }
+                    }
+                } else {
+                    false
+                }
             }
     ) {
         AndroidView(
@@ -116,129 +140,168 @@ fun PlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        AnimatedVisibility(
-            visible = showControls,
-            enter = fadeIn(),
-            exit = fadeOut()
+        // Use alpha instead of AnimatedVisibility so the UI tree doesn't change, 
+        // which prevents focus from dropping when controls hide.
+        val controlsAlpha by animateFloatAsState(
+            targetValue = if (showControls) 1f else 0f, 
+            animationSpec = tween(300)
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(controlsAlpha)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)), startY = 0.6f))
+                .padding(24.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color(0xE6000000)), startY = 0.6f))
-                    .padding(24.dp)
-            ) {
-                Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
-                    Text(
-                        text = item.name,
-                        color = TextColor,
-                        fontSize = 16.sp, // Scaled down
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = SpaceGrotesk
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp)) // Tightened spacing
+            Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
+                Text(
+                    text = item.name,
+                    color = TextColor,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceGrotesk
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    // --- SEEKBAR ---
-                    var isProgressFocused by remember { mutableStateOf(false) }
-                    val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 3.dp)
-                    val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 14.dp else 0.dp)
-                    
-                    val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
-                    val animatedProgress by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), animationSpec = tween(150))
+                PlayerSeekBar(
+                    exoPlayer = exoPlayer,
+                    onInteraction = { lastInteraction = System.currentTimeMillis() },
+                    showControls = showControls // Only allow focus if shown
+                )
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { 
-                                isProgressFocused = it.isFocused 
-                                if (it.isFocused) lastInteraction = System.currentTimeMillis()
-                            }
-                            .onKeyEvent { keyEvent ->
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PlayerButton(
+                            icon = if (isPlaying) PlayerIcons.Pause else PlayerIcons.Play,
+                            onClick = { 
                                 lastInteraction = System.currentTimeMillis()
-                                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                                    when (keyEvent.nativeKeyEvent.keyCode) {
-                                        KeyEvent.KEYCODE_DPAD_LEFT -> {
-                                            exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0L))
-                                            true
-                                        }
-                                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                                            exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration))
-                                            true
-                                        }
-                                        else -> false
-                                    }
-                                } else false
-                            }
-                            .focusable()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().height(16.dp),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            Box(modifier = Modifier.fillMaxWidth().height(barHeight).clip(CircleShape).background(ProgressTrack))
-                            Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(barHeight).background(ProgressFill))
-                            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                                val dotOffset = (maxWidth - dotSize) * animatedProgress
-                                Box(
-                                    modifier = Modifier
-                                        .offset(x = dotOffset)
-                                        .size(dotSize)
-                                        .clip(CircleShape)
-                                        .background(Color.White)
-                                )
-                            }
-                        }
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(formatTime(currentPosition), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontFamily = SpaceGrotesk)
-                            Text(formatTime(duration), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontFamily = SpaceGrotesk)
-                        }
+                                if (isPlaying) exoPlayer.pause() else exoPlayer.play() 
+                            },
+                            isPrimary = true,
+                            modifier = Modifier.focusRequester(focusRequester),
+                            enabled = showControls
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        PlayerButton(
+                            icon = PlayerIcons.Rewind,
+                            onClick = { 
+                                lastInteraction = System.currentTimeMillis()
+                                exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0L)) 
+                            },
+                            enabled = showControls
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        PlayerButton(
+                            icon = PlayerIcons.Forward,
+                            onClick = { 
+                                lastInteraction = System.currentTimeMillis()
+                                exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)) 
+                            },
+                            enabled = showControls
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp)) // Reduced space to controls row
-
-                    // --- CONTROLS ---
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            PlayerButton(
-                                icon = if (isPlaying) PlayerIcons.Pause else PlayerIcons.Play,
-                                onClick = { 
-                                    lastInteraction = System.currentTimeMillis()
-                                    if (isPlaying) exoPlayer.pause() else exoPlayer.play() 
-                                },
-                                isPrimary = true,
-                                modifier = Modifier.focusRequester(focusRequester)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            PlayerButton(
-                                icon = PlayerIcons.Rewind,
-                                onClick = { 
-                                    lastInteraction = System.currentTimeMillis()
-                                    exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0L)) 
-                                }
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            PlayerButton(
-                                icon = PlayerIcons.Forward,
-                                onClick = { 
-                                    lastInteraction = System.currentTimeMillis()
-                                    exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)) 
-                                }
-                            )
-                        }
-
-                        PlayerButton(icon = PlayerIcons.Settings, onClick = { lastInteraction = System.currentTimeMillis() })
-                    }
+                    PlayerButton(
+                        icon = PlayerIcons.Settings, 
+                        onClick = { lastInteraction = System.currentTimeMillis() },
+                        enabled = showControls
+                    )
                 }
             }
+        }
+    }
+}
+
+// Extract seekbar to scope state reads and prevent whole-screen recomposition
+@Composable
+fun PlayerSeekBar(
+    exoPlayer: ExoPlayer, 
+    onInteraction: () -> Unit,
+    showControls: Boolean
+) {
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(exoPlayer) {
+        while (true) {
+            currentPosition = exoPlayer.currentPosition
+            duration = exoPlayer.duration.coerceAtLeast(1L)
+            delay(250) // Reduced refresh rate to save CPU
+        }
+    }
+
+    var isProgressFocused by remember { mutableStateOf(false) }
+    val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 3.dp)
+    val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 14.dp else 0.dp)
+    
+    val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+    // Don't animate the progress bar filling, as it fights with the user seeking
+    val animatedProgress = progress.coerceIn(0f, 1f)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onFocusChanged { 
+                isProgressFocused = it.isFocused 
+                if (it.isFocused) onInteraction()
+            }
+            .onKeyEvent { keyEvent ->
+                onInteraction()
+                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_LEFT -> {
+                            // Calculate based on the local state, not the exoPlayer which might lag
+                            val newPos = (currentPosition - 15000).coerceAtLeast(0L)
+                            currentPosition = newPos
+                            exoPlayer.seekTo(newPos)
+                            true
+                        }
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                            val newPos = (currentPosition + 15000).coerceAtMost(duration)
+                            currentPosition = newPos
+                            exoPlayer.seekTo(newPos)
+                            true
+                        }
+                        else -> false
+                    }
+                } else false
+            }
+            // Only focusable if controls are shown
+            .focusable(showControls)
+            .padding(vertical = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(16.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().height(barHeight).clip(CircleShape).background(ProgressTrack))
+            Box(modifier = Modifier.fillMaxWidth(animatedProgress).height(barHeight).background(ProgressFill))
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val dotOffset = (maxWidth - dotSize) * animatedProgress
+                Box(
+                    modifier = Modifier
+                        .offset(x = dotOffset)
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                )
+            }
+        }
+        
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(formatTime(currentPosition), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontFamily = SpaceGrotesk)
+            Text(formatTime(duration), color = Color(0xCCFFFFFF), fontSize = 12.sp, fontFamily = SpaceGrotesk)
         }
     }
 }
@@ -248,10 +311,11 @@ fun PlayerButton(
     icon: ImageVector,
     onClick: () -> Unit,
     isPrimary: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val size = if (isPrimary) 56.dp else 40.dp // Further scaled down
+    val size = if (isPrimary) 56.dp else 40.dp
     val scale by animateFloatAsState(targetValue = if (isFocused) 1.1f else 1f)
 
     Box(
@@ -260,8 +324,8 @@ fun PlayerButton(
             .size(size)
             .clip(CircleShape)
             .onFocusChanged { isFocused = it.isFocused }
-            .focusable()
-            .clickable { onClick() }
+            .focusable(enabled)
+            .clickable(enabled = enabled) { onClick() }
             .background(if (isFocused) Color.White else Color.Transparent),
         contentAlignment = Alignment.Center
     ) {
@@ -269,7 +333,7 @@ fun PlayerButton(
             imageVector = icon,
             contentDescription = null,
             tint = if (isFocused) Color.Black else Color.White,
-            modifier = Modifier.size(if (isPrimary) 28.dp else 20.dp) // Scaled down icons
+            modifier = Modifier.size(if (isPrimary) 28.dp else 20.dp)
         )
     }
 }
