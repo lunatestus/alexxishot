@@ -1,8 +1,0 @@
-<resources>
-    <color name="vibe_bg">#121212</color>
-    <color name="vibe_sidebar_bg">#1E1E1E</color>
-    <color name="vibe_text">#FFFFFF</color>
-    <color name="vibe_accent">#007BFF</color>
-    <color name="vibe_card_bg">#2A2A2A</color>
-    <color name="vibe_card_blue">#0044CC</color>
-</resources>
