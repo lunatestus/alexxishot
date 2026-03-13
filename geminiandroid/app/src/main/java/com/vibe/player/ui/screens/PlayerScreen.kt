@@ -41,6 +41,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.vibe.player.data.ApiClient
@@ -58,7 +59,12 @@ fun PlayerScreen(
     val streamUrl = remember(item.path) { ApiClient.getStreamUrl(item.path) }
     
     val exoPlayer = remember {
-        ExoPlayer.Builder(context).build()
+        val loadControl = DefaultLoadControl.Builder()
+            .setBackBuffer(60_000, true)
+            .build()
+        ExoPlayer.Builder(context)
+            .setLoadControl(loadControl)
+            .build()
     }
 
     var isPlaying by remember { mutableStateOf(true) }
