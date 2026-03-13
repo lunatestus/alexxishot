@@ -1,5 +1,6 @@
 package com.vibe.player.ui.screens
 
+import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -31,8 +33,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -60,6 +65,10 @@ fun MainScreen() {
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
 
+    // Focus Requesters
+    val sidebarFocusRequester = remember { FocusRequester() }
+    val contentFocusRequester = remember { FocusRequester() }
+
     fun loadPath(path: String) {
         currentPath = path
         isLoading = true
@@ -72,9 +81,7 @@ fun MainScreen() {
     }
 
     LaunchedEffect(Unit) {
-        items = ApiClient.fetchFolder("/media")
-        errorMessage = ApiClient.lastError
-        isLoading = false
+        loadPath("/media")
     }
 
     BackHandler(enabled = history.isNotEmpty() || playingItem != null) {
@@ -91,6 +98,7 @@ fun MainScreen() {
     val contentParallax by animateDpAsState(targetValue = if (isSidebarFocused) 24.dp else 0.dp)
 
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
+        // Content Area
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -98,6 +106,14 @@ fun MainScreen() {
                 .offset(x = contentParallax)
                 .alpha(contentAlpha)
                 .padding(top = 24.dp, start = 24.dp, bottom = 24.dp, end = 40.dp)
+                .onKeyEvent { keyEvent ->
+                    if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                        if (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+                            sidebarFocusRequester.requestFocus()
+                            true
+                        } else false
+                    } else false
+                }
         ) {
             // Header
             Row(
@@ -115,19 +131,26 @@ fun MainScreen() {
 
                 var isToggleFocused by remember { mutableStateOf(false) }
                 Box(
-                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(CardBg).border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
-                        .onFocusChanged { isToggleFocused = it.isFocused }.focusable().clickable { isListView = !isListView },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(CardBg)
+                        .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
+                        .onFocusChanged { isToggleFocused = it.isFocused }
+                        .focusable()
+                        .clickable { isListView = !isListView }
+                        .focusRequester(contentFocusRequester),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = if (isListView) Icons.Default.GridView else Icons.Default.List, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
+                    Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(18.dp))
                 }
             }
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Loading media...", color = TextColor, fontSize = 18.sp, fontFamily = SpaceGrotesk)
+                    CircularProgressIndicator(color = AccentColor, modifier = Modifier.size(48.dp))
                 }
-            } else if (errorMessage != null) {
+            } else if (errorMessage != null && errorMessage != "Empty folder") {
                 Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text("Error: $errorMessage", color = Color.Red, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(20.dp))
                     Button(
@@ -164,7 +187,18 @@ fun MainScreen() {
             }
         }
 
-        Sidebar(isExpanded = isSidebarFocused, onFocusChange = { isSidebarFocused = it }, onNavClick = { /* Handle nav */ })
+        // Sidebar
+        Sidebar(
+            isExpanded = isSidebarFocused,
+            focusRequester = sidebarFocusRequester,
+            onFocusChange = { isSidebarFocused = it },
+            onRequestContentFocus = { contentFocusRequester.requestFocus() },
+            onNavClick = { id ->
+                if (id == "home" || id == "movies") {
+                    loadPath("/media")
+                }
+            }
+        )
 
         if (playingItem != null) {
             PlayerScreen(item = playingItem!!, onClose = { playingItem = null })

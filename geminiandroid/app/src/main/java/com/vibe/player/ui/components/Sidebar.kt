@@ -1,12 +1,13 @@
 package com.vibe.player.ui.components
 
+import android.view.KeyEvent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Movie
@@ -17,9 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,7 +34,9 @@ data class NavItem(val label: String, val id: String, val icon: ImageVector)
 @Composable
 fun Sidebar(
     isExpanded: Boolean,
+    focusRequester: FocusRequester,
     onFocusChange: (Boolean) -> Unit,
+    onRequestContentFocus: () -> Unit,
     onNavClick: (String) -> Unit
 ) {
     val navItems = listOf(
@@ -47,6 +53,7 @@ fun Sidebar(
             .fillMaxHeight()
             .width(width)
             .background(SidebarBg)
+            .focusRequester(focusRequester)
             .onFocusChanged { onFocusChange(it.hasFocus) }
             .padding(top = 24.dp)
     ) {
@@ -80,13 +87,21 @@ fun Sidebar(
         LazyColumn(
             modifier = Modifier.padding(top = 16.dp)
         ) {
-            items(navItems) { item ->
+            itemsIndexed(navItems) { index, item ->
                 var isFocused by remember { mutableStateOf(false) }
                 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged { isFocused = it.isFocused }
+                        .onKeyEvent { keyEvent ->
+                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                                if (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                                    onRequestContentFocus()
+                                    true
+                                } else false
+                            } else false
+                        }
                         .focusable()
                         .clickable { onNavClick(item.id) }
                         .background(if (isFocused) AccentColor else Color.Transparent)
