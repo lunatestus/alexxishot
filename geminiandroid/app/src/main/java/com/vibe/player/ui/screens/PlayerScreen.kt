@@ -35,6 +35,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.theme.*
 import kotlinx.coroutines.delay
@@ -46,10 +47,11 @@ fun PlayerScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
+    val streamUrl = remember { ApiClient.getStreamUrl(item.path) }
     
     val exoPlayer = remember {
         ExoPlayer.Builder(context).build().apply {
-            val videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+            val videoUrl = streamUrl ?: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
             setMediaItem(MediaItem.fromUri(videoUrl))
             prepare()
             playWhenReady = true

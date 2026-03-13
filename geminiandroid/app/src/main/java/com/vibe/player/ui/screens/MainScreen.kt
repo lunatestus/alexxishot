@@ -34,27 +34,39 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
-import com.vibe.player.data.MockFileSystem
 import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen() {
     var currentPath by remember { mutableStateOf("/") }
     var history by remember { mutableStateOf(listOf<String>()) }
-    var items by remember { mutableStateOf(MockFileSystem.fetchFolder("/")) }
+    var items by remember { mutableStateOf(emptyList<FileItem>()) }
     var isListView by remember { mutableStateOf(true) }
     var playingItem by remember { mutableStateOf<FileItem?>(null) }
     var isSidebarFocused by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
+    val coroutineScope = rememberCoroutineScope()
 
     fun loadPath(path: String) {
         currentPath = path
-        items = MockFileSystem.fetchFolder(path)
+        isLoading = true
+        coroutineScope.launch {
+            items = ApiClient.fetchFolder(path)
+            isLoading = false
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        items = ApiClient.fetchFolder("/")
+        isLoading = false
     }
 
     BackHandler(enabled = history.isNotEmpty() || playingItem != null) {
