@@ -132,7 +132,7 @@ fun MainScreen() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Bold, fontFamily = DmSans)
+                    Text(text = "MovieApp", color = TextColor, fontSize = 18.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
                     Spacer(modifier = Modifier.width(14.dp))
                     Text(text = if (currentPath == "/") "" else "/ ${currentPath.removePrefix("/")}", color = BreadcrumbColor, fontSize = 13.sp, fontWeight = FontWeight.Medium, fontFamily = DmSans)
                 }

@@ -10,7 +10,7 @@ import com.vibe.player.R
 
 val DmSans = FontFamily(
     Font(R.font.dm_sans_bold, FontWeight.Normal),
-    Font(R.font.dm_sans_bold, FontWeight.Bold),
+    Font(R.font.dm_sans_bold, FontWeight.Medium),
     Font(R.font.dm_sans_bold, FontWeight.Medium),
     Font(R.font.dm_sans_bold, FontWeight.SemiBold)
 )
@@ -18,7 +18,7 @@ val DmSans = FontFamily(
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = DmSans,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp,
@@ -26,7 +26,7 @@ val Typography = Typography(
     ),
     titleLarge = TextStyle(
         fontFamily = DmSans,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.sp,
@@ -34,7 +34,7 @@ val Typography = Typography(
     ),
     labelSmall = TextStyle(
         fontFamily = DmSans,
-        fontWeight = FontWeight.Bold,
+        fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp,

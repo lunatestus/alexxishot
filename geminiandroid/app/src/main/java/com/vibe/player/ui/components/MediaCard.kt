@@ -83,7 +83,7 @@ fun MediaCard(
                     Text(
                         text = "Vibe",
                         color = Color(0x33FFFFFF),
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 16.sp,
                         fontFamily = DmSans
                     )
@@ -124,7 +124,7 @@ fun MediaCard(
                     Text(
                         text = "Vibe",
                         color = Color(0x33FFFFFF),
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.Medium,
                         fontSize = 28.sp,
                         fontFamily = DmSans
                     )
