@@ -72,7 +72,7 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
-    var focusedItemKey by remember { mutableStateOf<String?>(null) }
+    var focusedItemPath by remember { mutableStateOf<String?>(null) } // Only used for initial load tracking now
     val updateInProgress = remember { mutableStateOf(false) }
     val updateStatus = remember { mutableStateOf<String?>(null) }
     var loadRequestId by remember { mutableIntStateOf(0) }
@@ -81,55 +81,17 @@ fun MainScreen() {
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
-    val bottomRowIndices by remember {
-        derivedStateOf {
-            val visibleItems = gridState.layoutInfo.visibleItemsInfo
-            val maxOffsetY = visibleItems.maxOfOrNull { it.offset.y } ?: 0
-            visibleItems.asSequence()
-                .filter { it.offset.y == maxOffsetY }
-                .map { it.index }
-                .toSet()
-        }
-    }
-    val topRowIndices by remember {
-        derivedStateOf {
-            val visibleItems = gridState.layoutInfo.visibleItemsInfo
-            val minOffsetY = visibleItems.minOfOrNull { it.offset.y } ?: 0
-            visibleItems.asSequence()
-                .filter { it.offset.y == minOffsetY }
-                .map { it.index }
-                .toSet()
-        }
-    }
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
-    val listFocusRequesters = remember(items) { items.associate { it.path to FocusRequester() } }
     val gridFirstItemFocusRequester = remember { FocusRequester() }
-
-    suspend fun requestListItemFocusByKey(key: String) {
-        val index = items.indexOfFirst { it.path == key }
-        if (index < 0) return
-        val alreadyVisible = listState.layoutInfo.visibleItemsInfo.any { it.key == key }
-        if (!alreadyVisible) {
-            listState.scrollToItem(index)
-        }
-        val isVisible = withTimeoutOrNull(800) {
-            snapshotFlow {
-                listState.layoutInfo.visibleItemsInfo.any { it.key == key }
-            }.filter { it }.first()
-        }
-        if (isVisible != null) {
-            listFocusRequesters[key]?.requestFocus()
-        }
-    }
 
     fun loadPath(path: String) {
         currentPath = path
         isLoading = true
         errorMessage = null
         shouldRequestContentFocus = true
-        focusedItemKey = null
+        focusedItemPath = null
         loadRequestId += 1
         val requestId = loadRequestId
         loadJob?.cancel()
@@ -146,27 +108,21 @@ fun MainScreen() {
         loadPath("/media")
     }
 
-    LaunchedEffect(isLoading, shouldRequestContentFocus, isListView, items.size) {
+    LaunchedEffect(isLoading, shouldRequestContentFocus, items.size) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
             delay(100)
-            if (isListView) {
-                val targetKey = focusedItemKey ?: items.first().path
-                focusedItemKey = targetKey
-                requestListItemFocusByKey(targetKey)
-            } else {
-                gridFirstItemFocusRequester.requestFocus()
-            }
+            gridFirstItemFocusRequester.requestFocus()
             shouldRequestContentFocus = false
         }
     }
 
     LaunchedEffect(items) {
         if (items.isNotEmpty()) {
-            if (focusedItemKey == null || items.none { it.path == focusedItemKey }) {
-                focusedItemKey = items.first().path
+            if (focusedItemPath == null || items.none { it.path == focusedItemPath }) {
+                focusedItemPath = items.first().path
             }
         } else {
-            focusedItemKey = null
+            focusedItemPath = null
         }
     }
 
@@ -251,12 +207,13 @@ fun MainScreen() {
                     ) {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             val itemKey = item.path
-                            val focusRequester = listFocusRequesters[itemKey]
+                            val focusRequester = remember(itemKey) { FocusRequester() }
                             val cardModifier = Modifier
-                                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                                .focusRequester(focusRequester)
                                 .onFocusChanged {
                                     if (it.isFocused) {
-                                        focusedItemKey = itemKey
+                                        // No longer tracking focusedItemKey to avoid whole-screen recompositions
+                                        focusedItemPath = itemKey
                                     }
                                 }
                             MediaCard(
@@ -278,19 +235,16 @@ fun MainScreen() {
                 } else {
                     LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                            val isFirstRow = topRowIndices.contains(index)
-                            val isLastRow = bottomRowIndices.contains(index)
-                            val cardModifier = (if (index == 0) Modifier.focusRequester(gridFirstItemFocusRequester) else Modifier)
-                                .then(
-                                    if (isFirstRow || isLastRow) {
-                                        Modifier.focusProperties {
-                                            if (isFirstRow) up = FocusRequester.Cancel
-                                            if (isLastRow) down = FocusRequester.Cancel
-                                        }
-                                    } else {
-                                        Modifier
+                            val itemKey = item.path
+                            val focusRequester = remember(itemKey) { FocusRequester() }
+                            val cardModifier = Modifier
+                                .then(if (index == 0) Modifier.focusRequester(gridFirstItemFocusRequester) else Modifier)
+                                .focusRequester(focusRequester)
+                                .onFocusChanged {
+                                    if (it.isFocused) {
+                                        focusedItemPath = itemKey
                                     }
-                                )
+                                }
                             MediaCard(
                                 item = item,
                                 index = index,
