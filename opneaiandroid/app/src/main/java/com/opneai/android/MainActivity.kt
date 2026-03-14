@@ -149,6 +149,51 @@ private fun FileBrowserScreen() {
                     ) {
                         Text("Refresh")
                     }
+                    Spacer(Modifier.height(18.dp))
+                    Text(
+                        text = "Quick Links",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { scope.launch { drawerState.close() } },
+                        border = BorderStroke(1.dp, colorScheme.onSurface),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colorScheme.onSurface
+                        )
+                    ) {
+                        Text("Library")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { scope.launch { drawerState.close() } },
+                        border = BorderStroke(1.dp, colorScheme.onSurface),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colorScheme.onSurface
+                        )
+                    ) {
+                        Text("Downloads")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { scope.launch { drawerState.close() } },
+                        border = BorderStroke(1.dp, colorScheme.onSurface),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colorScheme.onSurface
+                        )
+                    ) {
+                        Text("Settings")
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { scope.launch { drawerState.close() } },
+                        border = BorderStroke(1.dp, colorScheme.onSurface),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colorScheme.onSurface
+                        )
+                    ) {
+                        Text("About")
+                    }
                 }
             }
         }
