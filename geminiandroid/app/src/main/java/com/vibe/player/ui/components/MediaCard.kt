@@ -86,7 +86,7 @@ fun MediaCard(
                 ) {
                     Text(
                         text = item.type.uppercase(),
-                        color = Color(0x33FFFFFF),
+                        color = Color(0x99000000),
                         fontWeight = FontWeight.Normal,
                         fontSize = 14.sp,
                         fontFamily = DmSans
@@ -121,7 +121,7 @@ fun MediaCard(
                 ) {
                     Text(
                         text = item.type.uppercase(),
-                        color = Color(0x33FFFFFF),
+                        color = Color(0x99000000),
                         fontWeight = FontWeight.Normal,
                         fontSize = 22.sp,
                         fontFamily = DmSans
