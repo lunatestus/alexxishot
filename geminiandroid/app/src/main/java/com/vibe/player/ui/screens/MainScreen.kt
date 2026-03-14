@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -26,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,14 +39,12 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
-import android.view.KeyEvent
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.components.MediaCard
@@ -51,7 +52,10 @@ import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
 import com.vibe.player.util.AppUpdater
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -67,7 +71,7 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
-    var focusedListIndex by remember { mutableIntStateOf(0) }
+    var focusedItemKey by remember { mutableStateOf<String?>(null) }
     val updateInProgress = remember { mutableStateOf(false) }
     val updateStatus = remember { mutableStateOf<String?>(null) }
     var loadRequestId by remember { mutableIntStateOf(0) }
@@ -99,18 +103,20 @@ fun MainScreen() {
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
-    val listFocusRequesters = remember(items.size) { List(items.size) { FocusRequester() } }
+    val listFocusRequesters = remember(items) { items.associate { it.path to FocusRequester() } }
     val gridFirstItemFocusRequester = remember { FocusRequester() }
 
-    fun moveListFocus(delta: Int) {
-        if (!isListView || items.isEmpty()) return
-        val target = (focusedListIndex + delta).coerceIn(0, items.lastIndex)
-        if (target == focusedListIndex) return
-        focusedListIndex = target
-        coroutineScope.launch {
-            listState.scrollToItem(target)
-            delay(16)
-            listFocusRequesters.getOrNull(target)?.requestFocus()
+    suspend fun requestListItemFocusByKey(key: String) {
+        val index = items.indexOfFirst { it.path == key }
+        if (index < 0) return
+        listState.scrollToItem(index)
+        val isVisible = withTimeoutOrNull(800) {
+            snapshotFlow {
+                listState.layoutInfo.visibleItemsInfo.any { it.key == key }
+            }.filter { it }.first()
+        }
+        if (isVisible != null) {
+            listFocusRequesters[key]?.requestFocus()
         }
     }
 
@@ -119,6 +125,7 @@ fun MainScreen() {
         isLoading = true
         errorMessage = null
         shouldRequestContentFocus = true
+        focusedItemKey = null
         loadRequestId += 1
         val requestId = loadRequestId
         loadJob?.cancel()
@@ -138,15 +145,24 @@ fun MainScreen() {
     LaunchedEffect(isLoading, shouldRequestContentFocus, isListView, items.size) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
             delay(100)
-            val firstRequester = if (isListView) listFocusRequesters.firstOrNull() else gridFirstItemFocusRequester
-            firstRequester?.requestFocus()
+            if (isListView) {
+                val targetKey = focusedItemKey ?: items.first().path
+                focusedItemKey = targetKey
+                requestListItemFocusByKey(targetKey)
+            } else {
+                gridFirstItemFocusRequester.requestFocus()
+            }
             shouldRequestContentFocus = false
         }
     }
 
-    LaunchedEffect(items.size, isListView) {
-        if (isListView && items.isNotEmpty()) {
-            focusedListIndex = focusedListIndex.coerceIn(0, items.lastIndex)
+    LaunchedEffect(items) {
+        if (items.isNotEmpty()) {
+            if (focusedItemKey == null || items.none { it.path == focusedItemKey }) {
+                focusedItemKey = items.first().path
+            }
+        } else {
+            focusedItemKey = null
         }
     }
 
@@ -226,32 +242,18 @@ fun MainScreen() {
                         contentPadding = PaddingValues(bottom = 40.dp)
                     ) {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                            val isLastItem = index == items.lastIndex
-                            val isFirstItem = index == 0
-                            val focusRequester = listFocusRequesters.getOrNull(index)
+                            val itemKey = item.path
+                            val focusRequester = listFocusRequesters[itemKey]
+                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
                             val cardModifier = Modifier
                                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-                                .focusProperties {
-                                    if (isFirstItem) up = FocusRequester.Cancel
-                                    if (isLastItem) down = FocusRequester.Cancel
-                                }
+                                .bringIntoViewRequester(bringIntoViewRequester)
                                 .onFocusChanged {
-                                    if (it.isFocused && focusedListIndex != index) {
-                                        focusedListIndex = index
-                                    }
-                                }
-                                .onPreviewKeyEvent { keyEvent ->
-                                    if (keyEvent.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
-                                    when (keyEvent.nativeKeyEvent.keyCode) {
-                                        KeyEvent.KEYCODE_DPAD_DOWN -> {
-                                            moveListFocus(1)
-                                            true
+                                    if (it.isFocused) {
+                                        focusedItemKey = itemKey
+                                        coroutineScope.launch {
+                                            bringIntoViewRequester.bringIntoView()
                                         }
-                                        KeyEvent.KEYCODE_DPAD_UP -> {
-                                            moveListFocus(-1)
-                                            true
-                                        }
-                                        else -> false
                                     }
                                 }
                             MediaCard(
@@ -260,6 +262,7 @@ fun MainScreen() {
                                 isListView = true,
                                 modifier = cardModifier,
                                 onClick = {
+                                    focusRequester?.requestFocus()
                                     if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
                                     else {
                                         activeItem = item
