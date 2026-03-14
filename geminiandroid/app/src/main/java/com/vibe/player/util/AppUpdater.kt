@@ -41,12 +41,18 @@ object AppUpdater {
                 val data = ByteArray(4096)
                 var total: Long = 0
                 var count: Int
+                var lastProgressUpdate = 0L
                 
                 while (input.read(data).also { count = it } != -1) {
                     total += count.toLong()
-                    onProgress(total, fileLength.toLong())
+                    val now = System.currentTimeMillis()
+                    if (now - lastProgressUpdate >= 250) {
+                        lastProgressUpdate = now
+                        onProgress(total, fileLength.toLong())
+                    }
                     output.write(data, 0, count)
                 }
+                onProgress(total, fileLength.toLong())
                 
                 output.flush()
                 output.close()

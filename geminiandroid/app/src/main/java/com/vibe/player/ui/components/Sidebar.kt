@@ -18,6 +18,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,11 +46,16 @@ fun Sidebar(
 
     val expandedWidth = 180.dp
     val collapsedWidth = 56.dp
+    val sidebarWidth by animateDpAsState(
+        targetValue = if (isExpanded) expandedWidth else collapsedWidth,
+        animationSpec = tween(200),
+        label = "sidebarWidth"
+    )
 
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(if (isExpanded) expandedWidth else collapsedWidth)
+            .width(sidebarWidth)
             .clipToBounds()
             .background(SidebarBg)
             .focusRequester(focusRequester)
