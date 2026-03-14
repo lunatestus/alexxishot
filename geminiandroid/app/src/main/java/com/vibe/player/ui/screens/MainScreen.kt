@@ -1,12 +1,10 @@
 package com.vibe.player.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -40,18 +38,22 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.zIndex
+import android.view.KeyEvent
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
 import com.vibe.player.util.AppUpdater
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
@@ -73,6 +75,8 @@ fun MainScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
     var focusedItemKey by remember { mutableStateOf<String?>(null) }
+    var listNavJob by remember { mutableStateOf<Job?>(null) }
+    var listNavDirection by remember { mutableIntStateOf(0) }
     val updateInProgress = remember { mutableStateOf(false) }
     val updateStatus = remember { mutableStateOf<String?>(null) }
     var loadRequestId by remember { mutableIntStateOf(0) }
@@ -110,7 +114,10 @@ fun MainScreen() {
     suspend fun requestListItemFocusByKey(key: String) {
         val index = items.indexOfFirst { it.path == key }
         if (index < 0) return
-        listState.scrollToItem(index)
+        val alreadyVisible = listState.layoutInfo.visibleItemsInfo.any { it.key == key }
+        if (!alreadyVisible) {
+            listState.scrollToItem(index)
+        }
         val isVisible = withTimeoutOrNull(800) {
             snapshotFlow {
                 listState.layoutInfo.visibleItemsInfo.any { it.key == key }
@@ -119,6 +126,16 @@ fun MainScreen() {
         if (isVisible != null) {
             listFocusRequesters[key]?.requestFocus()
         }
+    }
+
+    suspend fun moveListSelection(step: Int) {
+        if (items.isEmpty()) return
+        val currentIndex = items.indexOfFirst { it.path == focusedItemKey }.coerceAtLeast(0)
+        val nextIndex = (currentIndex + step).coerceIn(0, items.lastIndex)
+        if (nextIndex == currentIndex) return
+        val nextKey = items[nextIndex].path
+        focusedItemKey = nextKey
+        requestListItemFocusByKey(nextKey)
     }
 
     fun loadPath(path: String) {
@@ -164,6 +181,14 @@ fun MainScreen() {
             }
         } else {
             focusedItemKey = null
+        }
+    }
+
+    LaunchedEffect(isListView) {
+        if (!isListView) {
+            listNavJob?.cancel()
+            listNavJob = null
+            listNavDirection = 0
         }
     }
 
@@ -255,6 +280,42 @@ fun MainScreen() {
                                         coroutineScope.launch {
                                             bringIntoViewRequester.bringIntoView()
                                         }
+                                    } else if (listNavJob?.isActive == true) {
+                                        listNavJob?.cancel()
+                                        listNavJob = null
+                                        listNavDirection = 0
+                                    }
+                                }
+                                .onKeyEvent { keyEvent ->
+                                    val isDown = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+                                    val isUp = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP
+                                    if (!isDown && !isUp) return@onKeyEvent false
+                                    when (keyEvent.nativeKeyEvent.action) {
+                                        KeyEvent.ACTION_DOWN -> {
+                                            val direction = if (isDown) 1 else -1
+                                            if (listNavJob?.isActive == true && listNavDirection != direction) {
+                                                listNavJob?.cancel()
+                                                listNavJob = null
+                                            }
+                                            if (listNavJob == null) {
+                                                listNavDirection = direction
+                                                listNavJob = coroutineScope.launch {
+                                                    moveListSelection(direction)
+                                                    while (true) {
+                                                        delay(120)
+                                                        moveListSelection(direction)
+                                                    }
+                                                }
+                                            }
+                                            true
+                                        }
+                                        KeyEvent.ACTION_UP -> {
+                                            listNavJob?.cancel()
+                                            listNavJob = null
+                                            listNavDirection = 0
+                                            true
+                                        }
+                                        else -> false
                                     }
                                 }
                             MediaCard(
@@ -365,27 +426,38 @@ fun MainScreen() {
             }
         )
 
-        LaunchedEffect(isPlayerVisible, activeItem) {
-            if (!isPlayerVisible && activeItem != null) {
-                delay(220)
-                if (!isPlayerVisible) {
-                    activeItem = null
-                }
+        val playerAlpha by animateFloatAsState(
+            targetValue = if (isPlayerVisible) 1f else 0f,
+            animationSpec = tween(220)
+        )
+
+        LaunchedEffect(playerAlpha, isPlayerVisible, activeItem) {
+            if (!isPlayerVisible && activeItem != null && playerAlpha == 0f) {
+                activeItem = null
             }
         }
 
-        AnimatedVisibility(
-            visible = isPlayerVisible && activeItem != null,
-            enter = fadeIn(animationSpec = tween(220)),
-            exit = fadeOut(animationSpec = tween(220))
-        ) {
-            PlayerScreen(
-                item = activeItem!!,
-                onClose = {
-                    isPlayerVisible = false
-                    shouldRequestContentFocus = true
+        if (activeItem != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    .zIndex(2f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = playerAlpha }
+                ) {
+                    PlayerScreen(
+                        item = activeItem!!,
+                        onClose = {
+                            isPlayerVisible = false
+                            shouldRequestContentFocus = true
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 }

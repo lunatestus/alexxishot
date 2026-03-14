@@ -532,11 +532,23 @@ fun PlayerScreen(
             }
         }
 
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .height(120.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(Color(0xD9000000), Color.Transparent)
+                    )
+                )
+                .alpha(controlsAlpha)
+        )
         Text(
             text = item.name,
             color = TextColor,
             fontSize = 16.sp,
-            fontWeight = FontWeight.Normal,
+            fontWeight = FontWeight.SemiBold,
             fontFamily = DmSans,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -706,9 +718,9 @@ fun PlayerSeekBar(
                 fontSize = 12.sp,
                 fontFamily = DmSans,
                 maxLines = 1,
-                modifier = Modifier.width(72.dp)
+                modifier = Modifier.width(56.dp)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
@@ -741,7 +753,7 @@ fun PlayerSeekBar(
                         .background(Color.White)
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
                 formatTimeOrUnknown(duration),
                 color = Color(0xCCFFFFFF),
@@ -749,7 +761,7 @@ fun PlayerSeekBar(
                 fontFamily = DmSans,
                 maxLines = 1,
                 textAlign = TextAlign.End,
-                modifier = Modifier.width(72.dp)
+                modifier = Modifier.width(56.dp)
             )
         }
     }
