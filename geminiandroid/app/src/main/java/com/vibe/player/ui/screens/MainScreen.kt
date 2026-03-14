@@ -1,7 +1,8 @@
 package com.vibe.player.ui.screens
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -32,11 +33,11 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
@@ -132,119 +133,117 @@ fun MainScreen() {
         }
     }
 
-    val contentAlpha by animateFloatAsState(targetValue = if (isSidebarFocused) 0.5f else 1f, animationSpec = tween(200))
-    // Expanded width (180) - Collapsed width (56) = 124 shift
-    val contentTranslation by animateFloatAsState(targetValue = if (isSidebarFocused) 124f else 0f, animationSpec = tween(200))
-
     Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
-        // Content Area
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 56.dp)
-                .graphicsLayer {
-                    translationX = contentTranslation
-                    alpha = contentAlpha
-                }
-                .padding(top = 24.dp, start = 24.dp, bottom = 16.dp, end = 24.dp)
-        ) {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
-                }
-            } else if (errorMessage != null && errorMessage != "Empty folder") {
-                val friendlyMessage = when {
-                    errorMessage!!.startsWith("Tunnel starting") -> "Tunnel is starting. Please wait…"
-                    errorMessage!!.startsWith("Tunnel") -> "Backend is offline. Start it and try again."
-                    errorMessage!!.startsWith("Socket") -> "Network issue. Check connection and retry."
-                    errorMessage!!.startsWith("API HTTP") -> "Server error. Try again."
-                    errorMessage!!.startsWith("API error") -> "Server error. Try again."
-                    else -> "Something went wrong. Try again."
-                }
-                Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text(
-                        friendlyMessage,
-                        color = TextColor,
-                        fontSize = 16.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(20.dp)
-                    )
-                    Button(
-                        onClick = { 
-                            ApiClient.resetBaseUrl()
-                            loadPath(currentPath) 
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = TextColor
-                        ),
-                        border = BorderStroke(1.dp, ViewToggleBorder),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Reload")
+        SidebarScaffold(
+            sidebarExpanded = isSidebarFocused,
+            modifier = Modifier.fillMaxSize(),
+            collapsedSidebarWidth = 56.dp,
+            expandedSidebarWidth = 200.dp,
+            dimAlpha = 0.5f
+        ) { contentModifier ->
+            // Content Area
+            Column(
+                modifier = contentModifier
+                    .padding(top = 24.dp, start = 24.dp, bottom = 16.dp, end = 24.dp)
+            ) {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
                     }
-                }
-            } else if (items.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = DmSans)
-                }
-            } else if (isListView) {
-                LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
-                    itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                        val isLastItem = index == items.lastIndex
-                        val isFirstItem = index == 0
-                        val cardModifier = (if (isFirstItem) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
-                            .then(
-                                if (isFirstItem || isLastItem) {
-                                    Modifier.focusProperties {
-                                        if (isFirstItem) up = FocusRequester.Cancel
-                                        if (isLastItem) down = FocusRequester.Cancel
+                } else if (errorMessage != null && errorMessage != "Empty folder") {
+                    val friendlyMessage = when {
+                        errorMessage!!.startsWith("Tunnel starting") -> "Tunnel is starting. Please wait…"
+                        errorMessage!!.startsWith("Tunnel") -> "Backend is offline. Start it and try again."
+                        errorMessage!!.startsWith("Socket") -> "Network issue. Check connection and retry."
+                        errorMessage!!.startsWith("API HTTP") -> "Server error. Try again."
+                        errorMessage!!.startsWith("API error") -> "Server error. Try again."
+                        else -> "Something went wrong. Try again."
+                    }
+                    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Text(
+                            friendlyMessage,
+                            color = TextColor,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(20.dp)
+                        )
+                        Button(
+                            onClick = {
+                                ApiClient.resetBaseUrl()
+                                loadPath(currentPath)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = TextColor
+                            ),
+                            border = BorderStroke(1.dp, ViewToggleBorder),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Reload")
+                        }
+                    }
+                } else if (items.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = DmSans)
+                    }
+                } else if (isListView) {
+                    LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+                        itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
+                            val isLastItem = index == items.lastIndex
+                            val isFirstItem = index == 0
+                            val cardModifier = (if (isFirstItem) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                                .then(
+                                    if (isFirstItem || isLastItem) {
+                                        Modifier.focusProperties {
+                                            if (isFirstItem) up = FocusRequester.Cancel
+                                            if (isLastItem) down = FocusRequester.Cancel
+                                        }
+                                    } else {
+                                        Modifier
                                     }
-                                } else {
-                                    Modifier
+                                )
+                            MediaCard(
+                                item = item,
+                                index = index,
+                                isListView = true,
+                                modifier = cardModifier,
+                                onClick = {
+                                    if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
+                                    else { playingItem = item }
                                 }
                             )
-                        MediaCard(
-                            item = item, 
-                            index = index, 
-                            isListView = true, 
-                            modifier = cardModifier,
-                            onClick = {
-                                if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                                else { playingItem = item }
-                            }
-                        )
+                        }
                     }
-                }
-            } else {
-                LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
-                    itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                        val isFirstRow = topRowIndices.contains(index)
-                        val isLastRow = bottomRowIndices.contains(index)
-                        val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
-                            .then(
-                                if (isFirstRow || isLastRow) {
-                                    Modifier.focusProperties {
-                                        if (isFirstRow) up = FocusRequester.Cancel
-                                        if (isLastRow) down = FocusRequester.Cancel
+                } else {
+                    LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+                        itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
+                            val isFirstRow = topRowIndices.contains(index)
+                            val isLastRow = bottomRowIndices.contains(index)
+                            val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                                .then(
+                                    if (isFirstRow || isLastRow) {
+                                        Modifier.focusProperties {
+                                            if (isFirstRow) up = FocusRequester.Cancel
+                                            if (isLastRow) down = FocusRequester.Cancel
+                                        }
+                                    } else {
+                                        Modifier
                                     }
-                                } else {
-                                    Modifier
+                                )
+                            MediaCard(
+                                item = item,
+                                index = index,
+                                isListView = false,
+                                modifier = cardModifier,
+                                onClick = {
+                                    if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
+                                    else { playingItem = item }
                                 }
                             )
-                        MediaCard(
-                            item = item, 
-                            index = index, 
-                            isListView = false, 
-                            modifier = cardModifier,
-                            onClick = {
-                                if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                                else { playingItem = item }
-                            }
-                        )
+                        }
                     }
                 }
             }
@@ -309,11 +308,56 @@ fun MainScreen() {
 
         if (playingItem != null) {
             PlayerScreen(
-                item = playingItem!!, 
-                onClose = { 
+                item = playingItem!!,
+                onClose = {
                     playingItem = null
                     shouldRequestContentFocus = true
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun SidebarScaffold(
+    sidebarExpanded: Boolean,
+    modifier: Modifier = Modifier,
+    collapsedSidebarWidth: Dp,
+    expandedSidebarWidth: Dp,
+    dimAlpha: Float,
+    content: @Composable (Modifier) -> Unit
+) {
+    val density = LocalDensity.current
+    val shiftPx = remember(collapsedSidebarWidth, expandedSidebarWidth, density) {
+        with(density) { (expandedSidebarWidth - collapsedSidebarWidth).toPx() }
+    }
+    val progress = remember { Animatable(if (sidebarExpanded) 1f else 0f) }
+
+    LaunchedEffect(sidebarExpanded) {
+        progress.animateTo(
+            targetValue = if (sidebarExpanded) 1f else 0f,
+            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+        )
+    }
+
+    Box(modifier = modifier) {
+        // Keep the heavy content fully opaque; dim using a cheap scrim overlay.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(start = collapsedSidebarWidth)
+                .graphicsLayer {
+                    translationX = shiftPx * progress.value
+                }
+        ) {
+            content(Modifier.fillMaxSize())
+        }
+
+        if (dimAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = dimAlpha * progress.value))
             )
         }
     }

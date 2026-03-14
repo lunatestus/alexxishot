@@ -266,8 +266,6 @@ fun PlayerScreen(
     LaunchedEffect(showControls, isMenuOpen) {
         if (showControls && !isMenuOpen) {
             playPauseFocusRequester.requestFocus() // Return focus to controls when shown
-        } else {
-            screenFocusRequester.requestFocus()
         }
     }
 
