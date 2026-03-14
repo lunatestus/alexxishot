@@ -13,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -157,15 +158,20 @@ fun PlayerScreen(
                 if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                     when (keyEvent.nativeKeyEvent.keyCode) {
                         KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                            if (showControls || isMenuOpen) {
-                                showControls = false
+                            if (isMenuOpen) {
                                 showCaptionMenu = false
                                 showAudioMenu = false
+                                showControls = true
+                                playPauseFocusRequester.requestFocus()
+                                true
+                            } else if (showControls) {
+                                showControls = false
                                 screenFocusRequester.requestFocus()
+                                true
                             } else {
                                 onClose()
+                                true
                             }
-                            true
                         }
                         KeyEvent.KEYCODE_DPAD_CENTER,
                         KeyEvent.KEYCODE_ENTER,
@@ -670,7 +676,8 @@ private data class TrackOption(
     val rendererIndex: Int?,
     val groupIndex: Int?,
     val isSelected: Boolean,
-    val isOff: Boolean = false
+    val isOff: Boolean = false,
+    val isAuto: Boolean = false
 )
 
 @Composable
@@ -687,9 +694,28 @@ private fun TrackSelectionMenu(
         (0 until rendererCount).firstOrNull { getRendererType(it) == trackType }
     }
     val isTypeDisabled = rendererIndex?.let { trackSelector.parameters.getRendererDisabled(it) } ?: false
-    val options = remember(tracks, trackType, isTypeDisabled, rendererIndex) {
+    val trackGroups = rendererIndex?.let { mapped?.getTrackGroups(it) }
+    val selectionOverride = remember(rendererIndex, trackGroups, trackSelector.parameters) {
+        if (rendererIndex != null && trackGroups != null) {
+            trackSelector.parameters.getSelectionOverride(rendererIndex, trackGroups)
+        } else null
+    }
+    val hasExplicitOverride = selectionOverride != null
+    val options = remember(tracks, trackType, isTypeDisabled, rendererIndex, selectionOverride) {
         val built = mutableListOf<TrackOption>()
-        if (trackType == C.TRACK_TYPE_TEXT) {
+        val autoSelected = !isTypeDisabled && !hasExplicitOverride
+        built.add(
+            TrackOption(
+                label = "Auto",
+                group = null,
+                trackIndex = null,
+                rendererIndex = rendererIndex,
+                groupIndex = null,
+                isSelected = autoSelected,
+                isAuto = true
+            )
+        )
+        if (trackType == C.TRACK_TYPE_TEXT || trackType == C.TRACK_TYPE_AUDIO) {
             built.add(
                 TrackOption(
                     label = "Off",
@@ -727,89 +753,122 @@ private fun TrackSelectionMenu(
     }
 
     val focusRequesters = remember(options.size) { List(options.size) { FocusRequester() } }
+    val selectedIndex = options.indexOfFirst { it.isSelected }.coerceAtLeast(0)
+    val hasRealTracks = options.any { !it.isOff && !it.isAuto && it.group != null }
 
     LaunchedEffect(options.size) {
         if (options.isNotEmpty()) {
-            focusRequesters.first().requestFocus()
+            focusRequesters[selectedIndex].requestFocus()
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x66000000)),
+            .background(Color(0x88000000))
+            .clickable(
+                indication = null,
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+            ) { onDismiss() },
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .widthIn(min = 260.dp, max = 360.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(Color.Black)
-                .padding(16.dp)
+                .widthIn(min = 240.dp, max = 320.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF101010))
+                .border(1.dp, Color(0x26FFFFFF), RoundedCornerShape(18.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                ) { /* consume */ }
         ) {
             Text(
                 text = title,
                 color = TextColor,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Normal,
                 fontFamily = DmSans
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            options.forEachIndexed { index, option ->
-                var isFocused by remember { mutableStateOf(false) }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequesters[index])
-                        .onFocusChanged { isFocused = it.isFocused }
-                        .focusable()
-                        .onKeyEvent { keyEvent ->
-                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
-                                when (keyEvent.nativeKeyEvent.keyCode) {
-                                    KeyEvent.KEYCODE_DPAD_CENTER,
-                                    KeyEvent.KEYCODE_ENTER,
-                                    KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                                        applyTrackSelection(trackSelector, trackType, option)
-                                        onDismiss()
-                                        true
-                                    }
-                                    KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                                        onDismiss()
-                                        true
-                                    }
-                                    else -> false
-                                }
-                            } else {
-                                false
-                            }
-                        }
-                        .clickable {
-                            applyTrackSelection(trackSelector, trackType, option)
-                            onDismiss()
-                        }
-                        .background(if (isFocused) Color.White else Color.Transparent)
-                        .padding(vertical = 10.dp, horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Spacer(modifier = Modifier.height(10.dp))
+            if (!hasRealTracks) {
+                Text(
+                    text = "No tracks available",
+                    color = Color(0xB3FFFFFF),
+                    fontSize = 12.sp,
+                    fontFamily = DmSans
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            androidx.compose.foundation.lazy.LazyColumn(
+                modifier = Modifier.heightIn(max = 260.dp)
+            ) {
+                itemsIndexed(options) { index, option ->
+                    var isFocused by remember { mutableStateOf(false) }
+                    val isSelected = option.isSelected
+                    val rowBg = when {
+                        isFocused -> Color.White
+                        isSelected -> Color(0x1AFFFFFF)
+                        else -> Color.Transparent
+                    }
                     val textColor = if (isFocused) Color.Black else Color.White
-                    Text(
-                        text = option.label,
-                        color = textColor,
-                        fontSize = 14.sp,
-                        fontFamily = DmSans,
-                        maxLines = 1
-                    )
-                    if (option.isSelected && isFocused) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_circle_check),
-                            contentDescription = null,
-                            tint = textColor,
-                            modifier = Modifier.size(16.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequesters[index])
+                            .onFocusChanged { isFocused = it.isFocused }
+                            .focusable()
+                            .onKeyEvent { keyEvent ->
+                                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                                    when (keyEvent.nativeKeyEvent.keyCode) {
+                                        KeyEvent.KEYCODE_DPAD_CENTER,
+                                        KeyEvent.KEYCODE_ENTER,
+                                        KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                            applyTrackSelection(trackSelector, trackType, option)
+                                            onDismiss()
+                                            true
+                                        }
+                                        KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                                            onDismiss()
+                                            true
+                                        }
+                                        else -> false
+                                    }
+                                } else {
+                                    false
+                                }
+                            }
+                            .clickable {
+                                applyTrackSelection(trackSelector, trackType, option)
+                                onDismiss()
+                            }
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(rowBg)
+                            .padding(vertical = 8.dp, horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = option.label,
+                            color = textColor,
+                            fontSize = 13.sp,
+                            fontFamily = DmSans,
+                            maxLines = 1
                         )
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_circle_check),
+                                contentDescription = null,
+                                tint = textColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    if (index != options.lastIndex) {
+                        Spacer(modifier = Modifier.height(6.dp))
                     }
                 }
-                Spacer(modifier = Modifier.height(6.dp))
             }
         }
     }
@@ -828,7 +887,10 @@ private fun applyTrackSelection(
         .setTrackTypeDisabled(trackType, option.isOff)
         .clearSelectionOverrides(rendererIndex)
 
-    if (!option.isOff && option.groupIndex != null && option.trackIndex != null) {
+    if (option.isAuto) {
+        // Auto = no override, renderer enabled
+        paramsBuilder.setTrackTypeDisabled(trackType, false)
+    } else if (!option.isOff && option.groupIndex != null && option.trackIndex != null) {
         paramsBuilder.setSelectionOverride(
             rendererIndex,
             trackGroups,
