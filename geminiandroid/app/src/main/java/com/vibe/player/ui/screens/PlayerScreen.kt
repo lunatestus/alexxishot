@@ -38,13 +38,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.C
-import androidx.media3.common.TrackSelectionOverride
-import androidx.media3.common.TrackSelectionOverrides
 import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
@@ -605,6 +602,8 @@ private data class TrackOption(
     val label: String,
     val group: Tracks.Group?,
     val trackIndex: Int?,
+    val rendererIndex: Int?,
+    val groupIndex: Int?,
     val isSelected: Boolean,
     val isOff: Boolean = false
 )
@@ -618,8 +617,12 @@ private fun TrackSelectionMenu(
     onDismiss: () -> Unit
 ) {
     val tracks = exoPlayer.currentTracks
+    val mapped = trackSelector.currentMappedTrackInfo
+    val rendererIndex = mapped?.run {
+        (0 until rendererCount).firstOrNull { getRendererType(it) == trackType }
+    }
     val isTypeDisabled = trackSelector.parameters.getTrackTypeDisabled(trackType)
-    val options = remember(tracks, trackType, isTypeDisabled) {
+    val options = remember(tracks, trackType, isTypeDisabled, rendererIndex) {
         val built = mutableListOf<TrackOption>()
         if (trackType == C.TRACK_TYPE_TEXT) {
             built.add(
@@ -627,6 +630,8 @@ private fun TrackSelectionMenu(
                     label = "Off",
                     group = null,
                     trackIndex = null,
+                    rendererIndex = rendererIndex,
+                    groupIndex = null,
                     isSelected = isTypeDisabled,
                     isOff = true
                 )
@@ -638,11 +643,16 @@ private fun TrackSelectionMenu(
             for (i in 0 until trackGroup.length) {
                 val format = trackGroup.getFormat(i)
                 val label = format.label ?: format.language ?: "Track ${i + 1}"
+                val groupIndex = rendererIndex?.let { rIdx ->
+                    mapped?.getTrackGroups(rIdx)?.indexOf(trackGroup)
+                }
                 built.add(
                     TrackOption(
                         label = label,
                         group = group,
                         trackIndex = i,
+                        rendererIndex = rendererIndex,
+                        groupIndex = groupIndex,
                         isSelected = group.isTrackSelected(i) && !isTypeDisabled
                     )
                 )
@@ -695,7 +705,7 @@ private fun TrackSelectionMenu(
                                     KeyEvent.KEYCODE_DPAD_CENTER,
                                     KeyEvent.KEYCODE_ENTER,
                                     KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                                        applyTrackSelection(exoPlayer, trackSelector, trackType, option)
+                                        applyTrackSelection(trackSelector, trackType, option)
                                         onDismiss()
                                         true
                                     }
@@ -710,7 +720,7 @@ private fun TrackSelectionMenu(
                             }
                         }
                         .clickable {
-                            applyTrackSelection(exoPlayer, trackSelector, trackType, option)
+                            applyTrackSelection(trackSelector, trackType, option)
                             onDismiss()
                         }
                         .background(if (isFocused) Color.White else Color.Transparent)
@@ -742,33 +752,25 @@ private fun TrackSelectionMenu(
 }
 
 private fun applyTrackSelection(
-    exoPlayer: ExoPlayer,
     trackSelector: DefaultTrackSelector,
     trackType: Int,
     option: TrackOption
 ) {
-    val trackGroupTypes = exoPlayer.currentTracks.groups.associate {
-        it.mediaTrackGroup to it.type
-    }
-    val existing = trackSelector.parameters.trackSelectionOverrides
-    val overridesBuilder = TrackSelectionOverrides.Builder()
-    existing.overriddenTrackGroups.forEach { group ->
-        val override = existing.getOverride(group)
-        val groupType = trackGroupTypes[group]
-        if (groupType != trackType) {
-            overridesBuilder.addOverride(override)
-        }
-    }
-
-    if (!option.isOff && option.group != null && option.trackIndex != null) {
-        overridesBuilder.addOverride(
-            TrackSelectionOverride(option.group.mediaTrackGroup, listOf(option.trackIndex))
-        )
-    }
+    val rendererIndex = option.rendererIndex ?: return
+    val mapped = trackSelector.currentMappedTrackInfo ?: return
+    val trackGroups = mapped.getTrackGroups(rendererIndex)
 
     val paramsBuilder = trackSelector.parameters.buildUpon()
-        .setTrackSelectionOverrides(overridesBuilder.build())
         .setTrackTypeDisabled(trackType, option.isOff)
+        .clearSelectionOverrides(rendererIndex)
+
+    if (!option.isOff && option.groupIndex != null && option.trackIndex != null) {
+        paramsBuilder.setSelectionOverride(
+            rendererIndex,
+            trackGroups,
+            DefaultTrackSelector.SelectionOverride(option.groupIndex, option.trackIndex)
+        )
+    }
 
     trackSelector.parameters = paramsBuilder.build()
 }
