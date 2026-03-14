@@ -9,16 +9,15 @@ import androidx.compose.ui.unit.sp
 import com.vibe.player.R
 
 val DmSans = FontFamily(
-    Font(R.font.dm_sans_bold, FontWeight.Normal),
-    Font(R.font.dm_sans_bold, FontWeight.Medium),
-    Font(R.font.dm_sans_bold, FontWeight.Medium),
-    Font(R.font.dm_sans_bold, FontWeight.SemiBold)
+    Font(R.font.dm_sans_regular, FontWeight.Normal),
+    Font(R.font.dm_sans_regular, FontWeight.Normal),
+    Font(R.font.dm_sans_regular, FontWeight.Normal)
 )
 
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = DmSans,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.5.sp,
@@ -26,7 +25,7 @@ val Typography = Typography(
     ),
     titleLarge = TextStyle(
         fontFamily = DmSans,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = 22.sp,
         lineHeight = 28.sp,
         letterSpacing = 0.sp,
@@ -34,7 +33,7 @@ val Typography = Typography(
     ),
     labelSmall = TextStyle(
         fontFamily = DmSans,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.5.sp,

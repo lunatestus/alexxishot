@@ -107,7 +107,7 @@ fun Sidebar(
                             text = item.label,
                             color = contentTint,
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Normal,
                             maxLines = 1,
                             fontFamily = DmSans
                         )

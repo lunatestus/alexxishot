@@ -83,7 +83,7 @@ fun MediaCard(
                     Text(
                         text = item.type.uppercase(),
                         color = Color(0x33FFFFFF),
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Normal,
                         fontSize = 14.sp,
                         fontFamily = DmSans
                     )
@@ -98,7 +98,7 @@ fun MediaCard(
                         text = item.name,
                         color = TextColor,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Normal,
                         fontFamily = DmSans
                     )
                 }
@@ -118,7 +118,7 @@ fun MediaCard(
                     Text(
                         text = item.type.uppercase(),
                         color = Color(0x33FFFFFF),
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Normal,
                         fontSize = 22.sp,
                         fontFamily = DmSans
                     )
@@ -142,7 +142,7 @@ fun MediaCard(
                         text = item.name,
                         color = TextColor,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Normal,
                         maxLines = 1,
                         fontFamily = DmSans
                     )

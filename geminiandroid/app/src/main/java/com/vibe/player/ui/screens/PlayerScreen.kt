@@ -241,7 +241,7 @@ fun PlayerScreen(
                     text = item.name,
                     color = TextColor,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Normal,
                     fontFamily = DmSans
                 )
                 
