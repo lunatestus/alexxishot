@@ -2,11 +2,11 @@ name: OpenAI Android Build
 
 on:
   push:
-    branches: [ "gemini" ]
+    branches: [ "opneaiandroid" ]
     tags:
       - 'v*'
   pull_request:
-    branches: [ "gemini" ]
+    branches: [ "opneaiandroid" ]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -39,7 +39,7 @@ jobs:
         gradle :app:assembleDebug
 
     - name: Create Continuous Release
-      if: github.event_name == 'push' && github.ref == 'refs/heads/gemini'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/opneaiandroid'
       uses: softprops/action-gh-release@v2
       with:
         files: opneaiandroid/app/build/outputs/apk/debug/app-debug.apk
