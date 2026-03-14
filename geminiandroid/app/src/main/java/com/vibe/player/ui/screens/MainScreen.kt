@@ -1,9 +1,12 @@
 package com.vibe.player.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
@@ -45,6 +48,7 @@ import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
 import com.vibe.player.util.AppUpdater
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalComposeUiApi::class)
@@ -55,7 +59,8 @@ fun MainScreen() {
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
     var isListView by remember { mutableStateOf(true) }
-    var playingItem by remember { mutableStateOf<FileItem?>(null) }
+    var activeItem by remember { mutableStateOf<FileItem?>(null) }
+    var isPlayerVisible by remember { mutableStateOf(false) }
     var isSidebarFocused by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -117,7 +122,7 @@ fun MainScreen() {
 
     LaunchedEffect(isLoading, shouldRequestContentFocus, isListView, items.size) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
-            kotlinx.coroutines.delay(100)
+            delay(100)
             val firstRequester = if (isListView) listFocusRequesters.firstOrNull() else gridFirstItemFocusRequester
             firstRequester?.requestFocus()
             shouldRequestContentFocus = false
@@ -125,9 +130,10 @@ fun MainScreen() {
     }
 
 
-    BackHandler(enabled = history.isNotEmpty() || playingItem != null) {
-        if (playingItem != null) {
-            playingItem = null
+    BackHandler(enabled = history.isNotEmpty() || isPlayerVisible) {
+        if (isPlayerVisible) {
+            isPlayerVisible = false
+            shouldRequestContentFocus = true
         } else if (history.isNotEmpty()) {
             val prev = history.last()
             history = history.dropLast(1)
@@ -215,7 +221,10 @@ fun MainScreen() {
                                 modifier = cardModifier,
                                 onClick = {
                                     if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                                    else { playingItem = item }
+                                    else {
+                                        activeItem = item
+                                        isPlayerVisible = true
+                                    }
                                 }
                             )
                         }
@@ -243,7 +252,10 @@ fun MainScreen() {
                                 modifier = cardModifier,
                                 onClick = {
                                     if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                                    else { playingItem = item }
+                                    else {
+                                        activeItem = item
+                                        isPlayerVisible = true
+                                    }
                                 }
                             )
                         }
@@ -309,11 +321,24 @@ fun MainScreen() {
             }
         )
 
-        if (playingItem != null) {
+        LaunchedEffect(isPlayerVisible, activeItem) {
+            if (!isPlayerVisible && activeItem != null) {
+                delay(220)
+                if (!isPlayerVisible) {
+                    activeItem = null
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = isPlayerVisible && activeItem != null,
+            enter = fadeIn(animationSpec = tween(220)),
+            exit = fadeOut(animationSpec = tween(220))
+        ) {
             PlayerScreen(
-                item = playingItem!!,
+                item = activeItem!!,
                 onClose = {
-                    playingItem = null
+                    isPlayerVisible = false
                     shouldRequestContentFocus = true
                 }
             )
