@@ -19,6 +19,8 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
     
     - name: set up JDK 17
       uses: actions/setup-java@v4
@@ -34,7 +36,7 @@ jobs:
     - name: Build with Gradle
       run: |
         cd geminiandroid
-        gradle assembleDebug
+        ./gradlew :app:assembleDebug
 
     - name: Create Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/gemini'
