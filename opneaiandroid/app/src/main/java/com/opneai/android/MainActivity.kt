@@ -38,6 +38,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -248,6 +251,31 @@ private fun FileBrowserScreen() {
             modifier = Modifier
                 .fillMaxSize()
                 .background(colorScheme.background)
+                .onPreviewKeyEvent { event ->
+                    if (event.type == KeyEventType.KeyDown) {
+                        when (event.key) {
+                            Key.DirectionLeft -> {
+                                if (!drawerState.isOpen) {
+                                    scope.launch { drawerState.open() }
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                            Key.DirectionRight -> {
+                                if (drawerState.isOpen) {
+                                    scope.launch { drawerState.close() }
+                                    true
+                                } else {
+                                    false
+                                }
+                            }
+                            else -> false
+                        }
+                    } else {
+                        false
+                    }
+                }
         ) {
             TopAppBar(
                 title = {
