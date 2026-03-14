@@ -36,7 +36,7 @@ jobs:
     - name: Build with Gradle
       run: |
         cd geminiandroid
-        ./gradlew :app:assembleDebug
+        gradle :app:assembleDebug
 
     - name: Create Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/gemini'
