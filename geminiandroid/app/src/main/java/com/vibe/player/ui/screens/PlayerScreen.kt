@@ -50,6 +50,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.C
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.TrackSelectionOverrides
 import androidx.media3.common.Tracks
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.common.util.UnstableApi
@@ -842,8 +844,6 @@ private data class TrackOption(
     val label: String,
     val group: Tracks.Group?,
     val trackIndex: Int?,
-    val rendererIndex: Int?,
-    val groupIndex: Int?,
     val isSelected: Boolean,
     val isSupported: Boolean,
     val isOff: Boolean = false,
@@ -865,14 +865,15 @@ private fun TrackSelectionMenu(
         (0 until rendererCount).firstOrNull { getRendererType(it) == trackType }
     }
     val isTypeDisabled = rendererIndex?.let { trackSelector.parameters.getRendererDisabled(it) } ?: false
-    val trackGroups = rendererIndex?.let { mapped?.getTrackGroups(it) }
-    val selectionOverride = remember(rendererIndex, trackGroups, trackSelector.parameters) {
-        if (rendererIndex != null && trackGroups != null) {
-            trackSelector.parameters.getSelectionOverride(rendererIndex, trackGroups)
-        } else null
+    val trackGroupTypes = remember(tracks) {
+        tracks.groups.associate { it.mediaTrackGroup to it.type }
     }
-    val hasExplicitOverride = selectionOverride != null
-    val options = remember(tracks, trackType, isTypeDisabled, rendererIndex, selectionOverride) {
+    val hasExplicitOverride = remember(trackSelector.parameters, trackGroupTypes, trackType) {
+        trackSelector.parameters.trackSelectionOverrides.overriddenTrackGroups.any { group ->
+            trackGroupTypes[group] == trackType
+        }
+    }
+    val options = remember(tracks, trackType, isTypeDisabled, hasExplicitOverride) {
         val built = mutableListOf<TrackOption>()
         val autoSelected = !isTypeDisabled && !hasExplicitOverride
         built.add(
@@ -880,8 +881,6 @@ private fun TrackSelectionMenu(
                 label = "Auto",
                 group = null,
                 trackIndex = null,
-                rendererIndex = rendererIndex,
-                groupIndex = null,
                 isSelected = autoSelected,
                 isSupported = true,
                 isAuto = true
@@ -893,8 +892,6 @@ private fun TrackSelectionMenu(
                     label = "Off",
                     group = null,
                     trackIndex = null,
-                    rendererIndex = rendererIndex,
-                    groupIndex = null,
                     isSelected = isTypeDisabled,
                     isSupported = true,
                     isOff = true
@@ -907,16 +904,11 @@ private fun TrackSelectionMenu(
             for (i in 0 until trackGroup.length) {
                 val format = trackGroup.getFormat(i)
                 val label = format.label ?: format.language ?: "Track ${i + 1}"
-                val groupIndex = rendererIndex?.let { rIdx ->
-                    mapped?.getTrackGroups(rIdx)?.indexOf(trackGroup)
-                }?.takeIf { it >= 0 }
                 built.add(
                     TrackOption(
                         label = label,
                         group = group,
                         trackIndex = i,
-                        rendererIndex = rendererIndex,
-                        groupIndex = groupIndex,
                         isSelected = group.isTrackSelected(i) && !isTypeDisabled,
                         isSupported = group.isTrackSupported(i)
                     )
@@ -1008,7 +1000,7 @@ private fun TrackSelectionMenu(
                                             if (trackType == C.TRACK_TYPE_AUDIO) {
                                                 onAudioSelectionAttempt(trackSelector.parameters, option)
                                             }
-                                            applyTrackSelection(trackSelector, trackType, option)
+                                            applyTrackSelection(exoPlayer, trackSelector, trackType, option)
                                             onDismiss()
                                             true
                                         }
@@ -1026,7 +1018,7 @@ private fun TrackSelectionMenu(
                                 if (trackType == C.TRACK_TYPE_AUDIO) {
                                     onAudioSelectionAttempt(trackSelector.parameters, option)
                                 }
-                                applyTrackSelection(trackSelector, trackType, option)
+                                applyTrackSelection(exoPlayer, trackSelector, trackType, option)
                                 onDismiss()
                             }
                             .clip(RoundedCornerShape(12.dp))
@@ -1061,34 +1053,37 @@ private fun TrackSelectionMenu(
 }
 
 private fun applyTrackSelection(
+    exoPlayer: ExoPlayer,
     trackSelector: DefaultTrackSelector,
     trackType: Int,
     option: TrackOption
 ) {
     if (!option.isSupported) return
-    val rendererIndex = option.rendererIndex ?: return
-    val mapped = trackSelector.currentMappedTrackInfo ?: return
-    val trackGroups = mapped.getTrackGroups(rendererIndex)
-    if (trackGroups.length == 0) return
+    val trackGroupTypes = exoPlayer.currentTracks.groups.associate {
+        it.mediaTrackGroup to it.type
+    }
+    val existing = trackSelector.parameters.trackSelectionOverrides
+    val overridesBuilder = TrackSelectionOverrides.Builder()
+    existing.overriddenTrackGroups.forEach { group ->
+        val override = existing.getOverride(group)
+        val groupType = trackGroupTypes[group]
+        if (groupType != trackType) {
+            overridesBuilder.addOverride(override)
+        }
+    }
 
     val paramsBuilder = trackSelector.parameters.buildUpon()
+        .setTrackSelectionOverrides(overridesBuilder.build())
         .setTrackTypeDisabled(trackType, option.isOff)
-        .clearSelectionOverrides(rendererIndex)
 
     if (option.isAuto) {
         // Auto = no override, renderer enabled
         paramsBuilder.setTrackTypeDisabled(trackType, false)
-    } else if (!option.isOff && option.groupIndex != null && option.trackIndex != null) {
-        val groupIndex = option.groupIndex
-        val trackIndex = option.trackIndex
-        if (groupIndex !in 0 until trackGroups.length) return
-        val group = trackGroups[groupIndex]
-        if (trackIndex !in 0 until group.length) return
-        paramsBuilder.setSelectionOverride(
-            rendererIndex,
-            trackGroups,
-            DefaultTrackSelector.SelectionOverride(groupIndex, trackIndex)
+    } else if (!option.isOff && option.group != null && option.trackIndex != null) {
+        overridesBuilder.addOverride(
+            TrackSelectionOverride(option.group.mediaTrackGroup, listOf(option.trackIndex))
         )
+        paramsBuilder.setTrackSelectionOverrides(overridesBuilder.build())
     }
 
     trackSelector.parameters = paramsBuilder.build()
