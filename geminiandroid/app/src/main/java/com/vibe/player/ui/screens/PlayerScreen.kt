@@ -165,7 +165,6 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
                             lastInteraction = System.currentTimeMillis()
                             if (!showControls) {
-                                showControls = true
                                 val offset = if (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -10000L else 10000L
                                 if (playbackError == null) {
                                     val rawDuration = exoPlayer.duration
