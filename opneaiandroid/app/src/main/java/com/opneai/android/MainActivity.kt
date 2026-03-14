@@ -144,12 +144,6 @@ private fun FileBrowserScreen() {
         }
     }
 
-    LaunchedEffect(focusedIndex) {
-        if (items.isNotEmpty() && focusedIndex in items.indices) {
-            listState.animateScrollToItem(focusedIndex)
-        }
-    }
-
     BackHandler(enabled = !isPlayerVisible && (drawerState.isOpen || history.isNotEmpty())) {
         when {
             drawerState.isOpen -> scope.launch { drawerState.close() }
@@ -339,7 +333,17 @@ private fun FileBrowserScreen() {
                             FileRow(
                                 item = item,
                                 focusRequester = if (index == 0) firstItemFocusRequester else null,
-                                onFocused = { focusedIndex = index }
+                                onFocused = {
+                                    focusedIndex = index
+                                    val visible = listState.layoutInfo.visibleItemsInfo
+                                    if (visible.isNotEmpty()) {
+                                        val first = visible.first().index
+                                        val last = visible.last().index
+                                        if (index < first || index > last) {
+                                            scope.launch { listState.scrollToItem(index) }
+                                        }
+                                    }
+                                }
                             ) {
                                 if (item.type == "folder") {
                                     history = history + currentPath
