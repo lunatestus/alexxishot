@@ -1,140 +1,290 @@
 package com.opneai.android
 
+import android.app.Activity
 import android.os.Bundle
-import android.view.View
-import android.widget.Button
-import android.widget.ImageButton
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.opneai.android.data.ApiClient
 import com.opneai.android.data.FileItem
-import com.opneai.android.ui.FileListAdapter
+import com.opneai.android.ui.theme.OpenAIAndroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-class MainActivity : AppCompatActivity() {
-    private lateinit var drawerLayout: DrawerLayout
-    private lateinit var adapter: FileListAdapter
-    private lateinit var pathText: TextView
-    private lateinit var errorText: TextView
-    private lateinit var loading: ProgressBar
-    private lateinit var sidebarStatus: TextView
-    private var currentPath: String = "/media"
-    private val history = ArrayDeque<String>()
-    private var loadJob: Job? = null
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        drawerLayout = findViewById(R.id.drawer_layout)
-        pathText = findViewById(R.id.path_text)
-        errorText = findViewById(R.id.error_text)
-        loading = findViewById(R.id.loading)
-        sidebarStatus = findViewById(R.id.sidebar_status)
-
-        val menuButton: ImageButton = findViewById(R.id.menu_button)
-        val refreshButton: Button = findViewById(R.id.refresh_button)
-        val sidebarHome: Button = findViewById(R.id.sidebar_home)
-        val sidebarRefresh: Button = findViewById(R.id.sidebar_refresh)
-
-        val listView: RecyclerView = findViewById(R.id.file_list)
-        listView.layoutManager = LinearLayoutManager(this)
-        adapter = FileListAdapter { item -> handleItemClick(item) }
-        listView.adapter = adapter
-
-        menuButton.setOnClickListener {
-            drawerLayout.openDrawer(GravityCompat.START)
-        }
-
-        refreshButton.setOnClickListener {
-            ApiClient.resetBaseUrl()
-            loadPath(currentPath, showSpinner = true)
-        }
-
-        sidebarHome.setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            history.clear()
-            loadPath("/media", showSpinner = true)
-        }
-
-        sidebarRefresh.setOnClickListener {
-            drawerLayout.closeDrawer(GravityCompat.START)
-            ApiClient.resetBaseUrl()
-            loadPath(currentPath, showSpinner = true)
-        }
-
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                when {
-                    drawerLayout.isDrawerOpen(GravityCompat.START) -> drawerLayout.closeDrawer(GravityCompat.START)
-                    history.isNotEmpty() -> {
-                        val previous = history.removeLast()
-                        loadPath(previous, showSpinner = true)
-                    }
-                    else -> finish()
+        setContent {
+            OpenAIAndroidTheme {
+                Surface(modifier = Modifier.fillMaxSize()) {
+                    FileBrowserScreen()
                 }
             }
-        })
-
-        loadPath(currentPath, showSpinner = true)
-    }
-
-    private fun handleItemClick(item: FileItem) {
-        if (item.type == "folder") {
-            history.addLast(currentPath)
-            loadPath(item.path, showSpinner = true)
-        } else {
-            Toast.makeText(this, "Selected file: ${item.name}", Toast.LENGTH_SHORT).show()
         }
     }
+}
 
-    private fun loadPath(path: String, showSpinner: Boolean) {
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FileBrowserScreen() {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val scope = rememberCoroutineScope()
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+
+    var currentPath by remember { mutableStateOf("/media") }
+    var history by remember { mutableStateOf(listOf<String>()) }
+    var items by remember { mutableStateOf(emptyList<FileItem>()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var loadJob by remember { mutableStateOf<Job?>(null) }
+
+    fun loadPath(path: String, forceRefresh: Boolean = false) {
         currentPath = path
-        pathText.text = path
-        if (showSpinner) {
-            loading.visibility = View.VISIBLE
-        }
-        errorText.visibility = View.GONE
-        sidebarStatus.text = getString(R.string.sidebar_status_idle)
-
+        isLoading = true
+        errorMessage = null
         loadJob?.cancel()
-        loadJob = lifecycleScope.launch {
+        loadJob = scope.launch {
+            if (forceRefresh) ApiClient.resetBaseUrl()
             val result = ApiClient.fetchFolder(path)
-            loading.visibility = View.GONE
+            items = result.items
+            errorMessage = result.error
+            isLoading = false
+        }
+    }
 
-            if (result.error != null && result.error != "Empty folder") {
-                val friendly = when {
-                    result.error.startsWith("Tunnel starting") -> "Tunnel is starting. Please wait."
-                    result.error.startsWith("Tunnel") -> "Backend is offline. Start it and retry."
-                    result.error.startsWith("Socket") -> "Network issue. Check connection and retry."
-                    result.error.startsWith("API HTTP") -> "Server error. Try again."
-                    result.error.startsWith("API error") -> "Server error. Try again."
-                    else -> "Something went wrong. Try again."
+    LaunchedEffect(Unit) {
+        loadPath(currentPath)
+    }
+
+    BackHandler(enabled = drawerState.isOpen || history.isNotEmpty()) {
+        when {
+            drawerState.isOpen -> scope.launch { drawerState.close() }
+            history.isNotEmpty() -> {
+                val prev = history.last()
+                history = history.dropLast(1)
+                loadPath(prev)
+            }
+            else -> activity?.finish()
+        }
+    }
+
+    val colorScheme = MaterialTheme.colorScheme
+
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.fillMaxHeight(),
+                drawerContainerColor = colorScheme.surface,
+                drawerContentColor = colorScheme.onSurface
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.Top
+                ) {
+                    Text(
+                        text = "OpenAI Files",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = if (isLoading) "Loading..." else (errorMessage ?: "Ready"),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp)
+                    )
+                    Spacer(Modifier.height(18.dp))
+                    Button(
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            history = emptyList()
+                            loadPath("/media")
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorScheme.onSurface,
+                            contentColor = colorScheme.surface
+                        )
+                    ) {
+                        Text("Home")
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            loadPath(currentPath, forceRefresh = true)
+                        },
+                        border = BorderStroke(1.dp, colorScheme.onSurface),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = colorScheme.onSurface
+                        )
+                    ) {
+                        Text("Refresh")
+                    }
                 }
-                errorText.text = friendly
-                errorText.visibility = View.VISIBLE
-                adapter.updateItems(emptyList())
-                sidebarStatus.text = friendly
-                return@launch
             }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colorScheme.background)
+        ) {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = currentPath,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { loadPath(currentPath, forceRefresh = true) }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = colorScheme.surface,
+                    titleContentColor = colorScheme.onSurface,
+                    navigationIconContentColor = colorScheme.onSurface,
+                    actionIconContentColor = colorScheme.onSurface
+                )
+            )
 
-            if (result.items.isEmpty()) {
-                errorText.text = "No files found"
-                errorText.visibility = View.VISIBLE
-                adapter.updateItems(emptyList())
-                return@launch
+            when {
+                isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colorScheme.onBackground)
+                    }
+                }
+                errorMessage != null && errorMessage != "Empty folder" -> {
+                    val friendly = when {
+                        errorMessage!!.startsWith("Tunnel starting") -> "Tunnel is starting. Please wait."
+                        errorMessage!!.startsWith("Tunnel") -> "Backend is offline. Start it and retry."
+                        errorMessage!!.startsWith("Socket") -> "Network issue. Check connection and retry."
+                        errorMessage!!.startsWith("API HTTP") -> "Server error. Try again."
+                        errorMessage!!.startsWith("API error") -> "Server error. Try again."
+                        else -> "Something went wrong. Try again."
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.Center,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = friendly,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colorScheme.onBackground
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        OutlinedButton(
+                            onClick = { loadPath(currentPath, forceRefresh = true) },
+                            border = BorderStroke(1.dp, colorScheme.onBackground),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = colorScheme.onBackground
+                            )
+                        ) {
+                            Text("Retry")
+                        }
+                    }
+                }
+                items.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No files found",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = colorScheme.onBackground
+                        )
+                    }
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(items, key = { it.path }) { item ->
+                            FileRow(item = item) {
+                                if (item.type == "folder") {
+                                    history = history + currentPath
+                                    loadPath(item.path)
+                                } else {
+                                    Toast.makeText(context, "Selected file: ${item.name}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }
+                    }
+                }
             }
+        }
+    }
+}
 
-            adapter.updateItems(result.items)
+@Composable
+private fun FileRow(item: FileItem, onClick: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(14.dp),
+        color = colorScheme.surfaceVariant,
+        tonalElevation = 2.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (item.type == "folder") Icons.Default.Folder else Icons.Default.Description,
+                contentDescription = null,
+                tint = colorScheme.onSurface
+            )
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (item.type == "folder") "Folder" else "File",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
