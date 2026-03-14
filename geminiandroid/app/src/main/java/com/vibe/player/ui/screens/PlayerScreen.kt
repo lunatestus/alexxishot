@@ -15,6 +15,9 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -343,7 +346,7 @@ fun PlayerScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PlayerButton(
-                            icon = PlayerIcons.Captions,
+                            icon = Icons.Filled.ClosedCaption,
                             onClick = { 
                                 lastInteraction = System.currentTimeMillis()
                                 showCaptionMenu = true
@@ -360,7 +363,7 @@ fun PlayerScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         PlayerButton(
-                            icon = PlayerIcons.Audio,
+                            icon = Icons.Filled.Headphones,
                             onClick = { 
                                 lastInteraction = System.currentTimeMillis()
                                 showAudioMenu = true
@@ -621,7 +624,7 @@ private fun TrackSelectionMenu(
     val rendererIndex = mapped?.run {
         (0 until rendererCount).firstOrNull { getRendererType(it) == trackType }
     }
-    val isTypeDisabled = trackSelector.parameters.getTrackTypeDisabled(trackType)
+    val isTypeDisabled = rendererIndex?.let { trackSelector.parameters.getRendererDisabled(it) } ?: false
     val options = remember(tracks, trackType, isTypeDisabled, rendererIndex) {
         val built = mutableListOf<TrackOption>()
         if (trackType == C.TRACK_TYPE_TEXT) {
