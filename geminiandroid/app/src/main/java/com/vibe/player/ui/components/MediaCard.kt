@@ -18,6 +18,9 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,12 +63,18 @@ fun MediaCard(
         }
         .focusable()
         .clickable { onClick() }
+        .drawWithContent {
+            drawContent()
+            if (borderColor != Color.Transparent) {
+                drawRoundRect(
+                    color = borderColor,
+                    size = size,
+                    cornerRadius = CornerRadius(10.dp.toPx()),
+                    style = Stroke(width = 3.dp.toPx())
+                )
+            }
+        }
         .clip(RoundedCornerShape(10.dp))
-        .border(
-            width = if (isFocused) 3.dp else 0.dp,
-            color = borderColor,
-            shape = RoundedCornerShape(10.dp)
-        )
 
     if (isListView) {
         Row(
