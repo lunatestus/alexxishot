@@ -16,12 +16,14 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
@@ -32,7 +34,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,6 +69,7 @@ private fun FileBrowserScreen() {
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val context = androidx.compose.ui.platform.LocalContext.current
+    val listState = rememberLazyListState()
 
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
@@ -74,6 +80,8 @@ private fun FileBrowserScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
     var upgradeDownloadId by remember { mutableLongStateOf(-1L) }
+    var focusedIndex by remember { mutableIntStateOf(0) }
+    val firstItemFocusRequester = remember { FocusRequester() }
 
     DisposableEffect(upgradeDownloadId) {
         if (upgradeDownloadId == -1L) return@DisposableEffect onDispose { }
@@ -128,6 +136,20 @@ private fun FileBrowserScreen() {
         loadPath(currentPath)
     }
 
+    LaunchedEffect(items) {
+        if (items.isNotEmpty()) {
+            focusedIndex = 0
+            kotlinx.coroutines.delay(50)
+            firstItemFocusRequester.requestFocus()
+        }
+    }
+
+    LaunchedEffect(focusedIndex) {
+        if (items.isNotEmpty() && focusedIndex in items.indices) {
+            listState.animateScrollToItem(focusedIndex)
+        }
+    }
+
     BackHandler(enabled = !isPlayerVisible && (drawerState.isOpen || history.isNotEmpty())) {
         when {
             drawerState.isOpen -> scope.launch { drawerState.close() }
@@ -174,81 +196,56 @@ private fun FileBrowserScreen() {
                         text = if (isLoading) "Loading..." else (errorMessage ?: "Ready"),
                         style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp)
                     )
-                    Spacer(Modifier.height(18.dp))
-                    Button(
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = colorScheme.onSurface.copy(alpha = 0.2f))
+                    Spacer(Modifier.height(16.dp))
+                    SidebarButton(
+                        label = "Home",
                         onClick = {
                             scope.launch { drawerState.close() }
                             history = emptyList()
                             loadPath("/media")
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colorScheme.onSurface,
-                            contentColor = colorScheme.surface
-                        )
-                    ) {
-                        Text("Home")
-                    }
+                        }
+                    )
                     Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
+                    SidebarButton(
+                        label = "Refresh",
                         onClick = {
                             scope.launch { drawerState.close() }
                             loadPath(currentPath, forceRefresh = true)
-                        },
-                        border = BorderStroke(1.dp, colorScheme.onSurface),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Refresh")
-                    }
+                        }
+                    )
                     Spacer(Modifier.height(18.dp))
                     Text(
                         text = "Quick Links",
-                        style = MaterialTheme.typography.labelLarge
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontSize = 12.sp
+                        ),
+                        color = colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                     Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { scope.launch { drawerState.close() } },
-                        border = BorderStroke(1.dp, colorScheme.onSurface),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Library")
-                    }
+                    SidebarButton(
+                        label = "Library",
+                        onClick = { scope.launch { drawerState.close() } }
+                    )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { scope.launch { drawerState.close() } },
-                        border = BorderStroke(1.dp, colorScheme.onSurface),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Downloads")
-                    }
+                    SidebarButton(
+                        label = "Downloads",
+                        onClick = { scope.launch { drawerState.close() } }
+                    )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { scope.launch { drawerState.close() } },
-                        border = BorderStroke(1.dp, colorScheme.onSurface),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Settings")
-                    }
+                    SidebarButton(
+                        label = "Settings",
+                        onClick = { scope.launch { drawerState.close() } }
+                    )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
+                    SidebarButton(
+                        label = "Upgrade",
                         onClick = {
                             scope.launch { drawerState.close() }
                             startUpgradeDownload(context) { id -> upgradeDownloadId = id }
-                        },
-                        border = BorderStroke(1.dp, colorScheme.onSurface),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colorScheme.onSurface
-                        )
-                    ) {
-                        Text("Upgrade")
-                    }
+                        }
+                    )
                 }
             }
         }
@@ -334,11 +331,16 @@ private fun FileBrowserScreen() {
                 }
                 else -> {
                     LazyColumn(
+                        state = listState,
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        items(items, key = { it.path }) { item ->
-                            FileRow(item = item) {
+                        itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
+                            FileRow(
+                                item = item,
+                                focusRequester = if (index == 0) firstItemFocusRequester else null,
+                                onFocused = { focusedIndex = index }
+                            ) {
                                 if (item.type == "folder") {
                                     history = history + currentPath
                                     loadPath(item.path)
@@ -356,7 +358,12 @@ private fun FileBrowserScreen() {
 }
 
 @Composable
-private fun FileRow(item: FileItem, onClick: () -> Unit) {
+private fun FileRow(
+    item: FileItem,
+    focusRequester: FocusRequester? = null,
+    onFocused: () -> Unit,
+    onClick: () -> Unit
+) {
     val colorScheme = MaterialTheme.colorScheme
     var isFocused by remember { mutableStateOf(false) }
     val background by animateColorAsState(
@@ -375,16 +382,27 @@ private fun FileRow(item: FileItem, onClick: () -> Unit) {
         targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
         label = "file_row_border"
     )
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.02f else 1f,
+        label = "file_row_scale"
+    )
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .onFocusChanged { isFocused = it.isFocused }
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .onFocusChanged {
+                isFocused = it.isFocused
+                if (it.isFocused) {
+                    onFocused()
+                }
+            }
             .focusable()
             .clickable(
                 onClick = onClick,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            ),
+            )
+            .graphicsLayer { scaleX = scale; scaleY = scale },
         shape = RoundedCornerShape(14.dp),
         color = background,
         border = BorderStroke(1.dp, borderColor),
@@ -417,6 +435,63 @@ private fun FileRow(item: FileItem, onClick: () -> Unit) {
                     color = subTextColor
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun SidebarButton(
+    label: String,
+    onClick: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    var isFocused by remember { mutableStateOf(false) }
+    val background by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
+        label = "sidebar_bg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
+        label = "sidebar_text"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) androidx.compose.ui.graphics.Color.Transparent else colorScheme.onSurface.copy(alpha = 0.25f),
+        label = "sidebar_border"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.02f else 1f,
+        label = "sidebar_scale"
+    )
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(40.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
+        shape = RoundedCornerShape(12.dp),
+        color = background,
+        border = BorderStroke(1.dp, borderColor),
+        tonalElevation = if (isFocused) 2.dp else 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 14.sp),
+                color = textColor
+            )
         }
     }
 }
