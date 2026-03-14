@@ -36,12 +36,14 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import android.view.KeyEvent
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.components.MediaCard
@@ -65,6 +67,7 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
+    var focusedListIndex by remember { mutableIntStateOf(0) }
     val updateInProgress = remember { mutableStateOf(false) }
     val updateStatus = remember { mutableStateOf<String?>(null) }
     var loadRequestId by remember { mutableIntStateOf(0) }
@@ -99,6 +102,18 @@ fun MainScreen() {
     val listFocusRequesters = remember(items.size) { List(items.size) { FocusRequester() } }
     val gridFirstItemFocusRequester = remember { FocusRequester() }
 
+    fun moveListFocus(delta: Int) {
+        if (!isListView || items.isEmpty()) return
+        val target = (focusedListIndex + delta).coerceIn(0, items.lastIndex)
+        if (target == focusedListIndex) return
+        focusedListIndex = target
+        coroutineScope.launch {
+            listState.scrollToItem(target)
+            delay(16)
+            listFocusRequesters.getOrNull(target)?.requestFocus()
+        }
+    }
+
     fun loadPath(path: String) {
         currentPath = path
         isLoading = true
@@ -126,6 +141,12 @@ fun MainScreen() {
             val firstRequester = if (isListView) listFocusRequesters.firstOrNull() else gridFirstItemFocusRequester
             firstRequester?.requestFocus()
             shouldRequestContentFocus = false
+        }
+    }
+
+    LaunchedEffect(items.size, isListView) {
+        if (isListView && items.isNotEmpty()) {
+            focusedListIndex = focusedListIndex.coerceIn(0, items.lastIndex)
         }
     }
 
@@ -211,8 +232,27 @@ fun MainScreen() {
                             val cardModifier = Modifier
                                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
                                 .focusProperties {
-                                    up = if (isFirstItem) FocusRequester.Cancel else listFocusRequesters[index - 1]
-                                    down = if (isLastItem) FocusRequester.Cancel else listFocusRequesters[index + 1]
+                                    if (isFirstItem) up = FocusRequester.Cancel
+                                    if (isLastItem) down = FocusRequester.Cancel
+                                }
+                                .onFocusChanged {
+                                    if (it.isFocused && focusedListIndex != index) {
+                                        focusedListIndex = index
+                                    }
+                                }
+                                .onPreviewKeyEvent { keyEvent ->
+                                    if (keyEvent.nativeKeyEvent.action != KeyEvent.ACTION_DOWN) return@onPreviewKeyEvent false
+                                    when (keyEvent.nativeKeyEvent.keyCode) {
+                                        KeyEvent.KEYCODE_DPAD_DOWN -> {
+                                            moveListFocus(1)
+                                            true
+                                        }
+                                        KeyEvent.KEYCODE_DPAD_UP -> {
+                                            moveListFocus(-1)
+                                            true
+                                        }
+                                        else -> false
+                                    }
                                 }
                             MediaCard(
                                 item = item,
