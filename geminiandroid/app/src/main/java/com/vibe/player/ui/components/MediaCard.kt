@@ -53,7 +53,11 @@ fun MediaCard(
             scaleX = scale
             scaleY = scale
         }
-        .onFocusChanged { isFocused = it.isFocused }
+        .onFocusChanged {
+            if (isFocused != it.isFocused) {
+                isFocused = it.isFocused
+            }
+        }
         .focusable()
         .clickable { onClick() }
         .clip(RoundedCornerShape(10.dp))

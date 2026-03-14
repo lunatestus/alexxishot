@@ -248,7 +248,9 @@ fun MainScreen() {
             isExpanded = isSidebarFocused,
             focusRequester = sidebarFocusRequester,
             onFocusChange = { focused ->
-                isSidebarFocused = focused
+                if (isSidebarFocused != focused) {
+                    isSidebarFocused = focused
+                }
                 if (!focused) {
                     shouldRequestContentFocus = true
                 }

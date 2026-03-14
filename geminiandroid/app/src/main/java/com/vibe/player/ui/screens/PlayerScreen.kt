@@ -139,7 +139,7 @@ fun PlayerScreen(
             .fillMaxSize()
             .background(Color.Black)
             .focusRequester(screenFocusRequester)
-            .focusable()
+            .focusable(true)
             .onKeyEvent { keyEvent ->
                 if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                     when (keyEvent.nativeKeyEvent.keyCode) {
@@ -375,7 +375,9 @@ fun PlayerSeekBar(
             .focusRequester(focusRequester)
             .focusProperties { down = downRequester }
             .onFocusChanged { 
-                isProgressFocused = it.isFocused
+                if (isProgressFocused != it.isFocused) {
+                    isProgressFocused = it.isFocused
+                }
                 if (it.isFocused) onInteraction()
             }
             .onKeyEvent { keyEvent ->
@@ -480,7 +482,11 @@ fun PlayerButton(
             .size(size)
             .clip(CircleShape)
             .focusProperties { focusProps?.invoke(this) }
-            .onFocusChanged { isFocused = it.isFocused }
+            .onFocusChanged {
+                if (isFocused != it.isFocused) {
+                    isFocused = it.isFocused
+                }
+            }
             .focusable(enabled)
             .onKeyEvent { keyEvent ->
                 if (!enabled) return@onKeyEvent false

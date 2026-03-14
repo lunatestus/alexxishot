@@ -36,13 +36,15 @@ fun Sidebar(
     onFocusChange: (Boolean) -> Unit,
     onNavClick: (String) -> Unit
 ) {
-    val navItems = listOf(
-        NavItem("Home", "home", PlayerIcons.Home),
-        NavItem("Movies", "movies", PlayerIcons.Movies),
-        NavItem("TV Shows", "tv", PlayerIcons.Tv),
-        NavItem("Update", "update", PlayerIcons.Update),
-        NavItem("Settings", "settings", PlayerIcons.Settings)
-    )
+    val navItems = remember {
+        listOf(
+            NavItem("Home", "home", PlayerIcons.Home),
+            NavItem("Movies", "movies", PlayerIcons.Movies),
+            NavItem("TV Shows", "tv", PlayerIcons.Tv),
+            NavItem("Update", "update", PlayerIcons.Update),
+            NavItem("Settings", "settings", PlayerIcons.Settings)
+        )
+    }
 
     val expandedWidth = 180.dp
     val collapsedWidth = 56.dp
@@ -66,61 +68,81 @@ fun Sidebar(
             modifier = Modifier.padding(top = 16.dp)
         ) {
             navItems.forEachIndexed { index, item ->
-                var isFocused by remember { mutableStateOf(false) }
-                
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusProperties {
-                            // Ensure up/down stays within the sidebar or stops, instead of leaking out
-                            if (index == 0) up = FocusRequester.Cancel
-                            if (index == navItems.lastIndex) down = FocusRequester.Cancel
-                            // explicitly prevent right from bleeding into random things besides the content grid
-                            right = FocusRequester.Default
-                        }
-                        .onFocusChanged { isFocused = it.isFocused }
-                        .focusable()
-                        .onKeyEvent { keyEvent ->
-                            if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
-                                when (keyEvent.nativeKeyEvent.keyCode) {
-                                    android.view.KeyEvent.KEYCODE_DPAD_CENTER,
-                                    android.view.KeyEvent.KEYCODE_ENTER,
-                                    android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                                        onNavClick(item.id)
-                                        true
-                                    }
-                                    else -> false
-                                }
-                            } else {
-                                false
-                            }
-                        }
-                        .clickable { onNavClick(item.id) }
-                        .background(if (isFocused) AccentColor else Color.Transparent)
-                        .padding(horizontal = if (isExpanded) 16.dp else 12.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
-                ) {
-                    val contentTint = if (isFocused) Color.Black else TextColor
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        tint = contentTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    if (isExpanded) {
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = item.label,
-                            color = contentTint,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Normal,
-                            maxLines = 1,
-                            fontFamily = DmSans
-                        )
-                    }
+                SidebarItem(
+                    item = item,
+                    isExpanded = isExpanded,
+                    isFirst = index == 0,
+                    isLast = index == navItems.lastIndex,
+                    onNavClick = onNavClick
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SidebarItem(
+    item: NavItem,
+    isExpanded: Boolean,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onNavClick: (String) -> Unit
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val resolvedPadding = if (isExpanded) 16.dp else 12.dp
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusProperties {
+                if (isFirst) up = FocusRequester.Cancel
+                if (isLast) down = FocusRequester.Cancel
+                right = FocusRequester.Default
+            }
+            .onFocusChanged {
+                if (isFocused != it.isFocused) {
+                    isFocused = it.isFocused
                 }
             }
+            .focusable()
+            .onKeyEvent { keyEvent ->
+                if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
+                        android.view.KeyEvent.KEYCODE_ENTER,
+                        android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                            onNavClick(item.id)
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
+            .clickable { onNavClick(item.id) }
+            .background(if (isFocused) AccentColor else Color.Transparent)
+            .padding(horizontal = resolvedPadding, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
+    ) {
+        val contentTint = if (isFocused) Color.Black else TextColor
+        Icon(
+            imageVector = item.icon,
+            contentDescription = null,
+            tint = contentTint,
+            modifier = Modifier.size(20.dp)
+        )
+        if (isExpanded) {
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = item.label,
+                color = contentTint,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+                fontFamily = DmSans
+            )
         }
     }
 }
