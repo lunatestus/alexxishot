@@ -57,6 +57,7 @@ import androidx.media3.exoplayer.source.TrackGroupArray
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
@@ -83,7 +84,11 @@ fun PlayerScreen(
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(20_000, false)
             .build()
-        ExoPlayer.Builder(context)
+        val renderersFactory = DefaultRenderersFactory(context)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setEnableAudioFloatOutput(false)
+            .setEnableAudioTrackPlaybackParams(true)
+        ExoPlayer.Builder(context, renderersFactory)
             .setLoadControl(loadControl)
             .setTrackSelector(trackSelector)
             .setAudioAttributes(
