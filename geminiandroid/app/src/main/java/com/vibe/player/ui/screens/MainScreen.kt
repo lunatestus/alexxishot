@@ -74,6 +74,16 @@ fun MainScreen() {
                 .toSet()
         }
     }
+    val topRowIndices by remember {
+        derivedStateOf {
+            val visibleItems = gridState.layoutInfo.visibleItemsInfo
+            val minOffsetY = visibleItems.minOfOrNull { it.offset.y } ?: 0
+            visibleItems.asSequence()
+                .filter { it.offset.y == minOffsetY }
+                .map { it.index }
+                .toSet()
+        }
+    }
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
@@ -164,10 +174,14 @@ fun MainScreen() {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                         val isLastItem = index == items.lastIndex
-                        val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                        val isFirstItem = index == 0
+                        val cardModifier = (if (isFirstItem) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
                             .then(
-                                if (isLastItem) {
-                                    Modifier.focusProperties { down = FocusRequester.Cancel }
+                                if (isFirstItem || isLastItem) {
+                                    Modifier.focusProperties {
+                                        if (isFirstItem) up = FocusRequester.Cancel
+                                        if (isLastItem) down = FocusRequester.Cancel
+                                    }
                                 } else {
                                     Modifier
                                 }
@@ -187,11 +201,15 @@ fun MainScreen() {
             } else {
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
+                        val isFirstRow = topRowIndices.contains(index)
                         val isLastRow = bottomRowIndices.contains(index)
                         val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
                             .then(
-                                if (isLastRow) {
-                                    Modifier.focusProperties { down = FocusRequester.Cancel }
+                                if (isFirstRow || isLastRow) {
+                                    Modifier.focusProperties {
+                                        if (isFirstRow) up = FocusRequester.Cancel
+                                        if (isLastRow) down = FocusRequester.Cancel
+                                    }
                                 } else {
                                     Modifier
                                 }
