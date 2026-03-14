@@ -38,8 +38,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -252,9 +250,10 @@ private fun FileBrowserScreen() {
                 .fillMaxSize()
                 .background(colorScheme.background)
                 .onPreviewKeyEvent { event ->
-                    if (event.type == KeyEventType.KeyDown) {
-                        when (event.key) {
-                            Key.DirectionLeft -> {
+                    val native = event.nativeKeyEvent
+                    if (native.action == android.view.KeyEvent.ACTION_DOWN) {
+                        when (native.keyCode) {
+                            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> {
                                 if (!drawerState.isOpen) {
                                     scope.launch { drawerState.open() }
                                     true
@@ -262,7 +261,7 @@ private fun FileBrowserScreen() {
                                     false
                                 }
                             }
-                            Key.DirectionRight -> {
+                            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> {
                                 if (drawerState.isOpen) {
                                     scope.launch { drawerState.close() }
                                     true
