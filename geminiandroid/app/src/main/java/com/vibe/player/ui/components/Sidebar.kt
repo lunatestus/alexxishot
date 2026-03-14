@@ -69,6 +69,7 @@ fun Sidebar(
             .background(SidebarBg)
             .focusRequester(focusRequester)
             .onFocusChanged { onFocusChange(it.hasFocus) }
+            .padding(top = 24.dp)
     ) {
         Column {
             val hasToggle = true

@@ -161,6 +161,23 @@ fun PlayerScreen(
                             }
                             true
                         }
+                        KeyEvent.KEYCODE_DPAD_LEFT,
+                        KeyEvent.KEYCODE_DPAD_RIGHT -> {
+                            lastInteraction = System.currentTimeMillis()
+                            if (!showControls) {
+                                showControls = true
+                                val offset = if (keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT) -10000L else 10000L
+                                if (playbackError == null) {
+                                    val rawDuration = exoPlayer.duration
+                                    val safeDuration = if (rawDuration > 0 && rawDuration != C.TIME_UNSET) rawDuration else Long.MAX_VALUE
+                                    val next = (exoPlayer.currentPosition + offset).coerceAtLeast(0L).coerceAtMost(safeDuration)
+                                    exoPlayer.seekTo(next)
+                                }
+                                true
+                            } else {
+                                false
+                            }
+                        }
                         else -> {
                             lastInteraction = System.currentTimeMillis()
                             if (!showControls) {
