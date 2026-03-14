@@ -147,6 +147,7 @@ fun MainScreen() {
                 }
             } else if (errorMessage != null && errorMessage != "Empty folder") {
                 val friendlyMessage = when {
+                    errorMessage!!.startsWith("Tunnel starting") -> "Tunnel is starting. Please wait…"
                     errorMessage!!.startsWith("Tunnel") -> "Backend is offline. Start it and try again."
                     errorMessage!!.startsWith("Socket") -> "Network issue. Check connection and retry."
                     errorMessage!!.startsWith("API HTTP") -> "Server error. Try again."

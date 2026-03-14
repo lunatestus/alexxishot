@@ -8,7 +8,6 @@ import java.net.URL
 import java.net.URLEncoder
 
 object ApiClient {
-    private const val TUNNEL_ENDPOINT = "https://lunatestus003--vibe-backend-tunnel.modal.run"
     private const val LAUNCH_ENDPOINT = "https://lunatestus003--vibe-backend-launch.modal.run"
     // Using a standard Chrome/Android User-Agent to avoid Cloudflare/Modal blocking
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36"
@@ -22,56 +21,44 @@ object ApiClient {
 
     suspend fun getBaseUrl(): String? = withContext(Dispatchers.IO) {
         cachedBaseUrl?.let { return@withContext it }
-        fun tryTunnel(): String? {
-            val conn = URL(TUNNEL_ENDPOINT).openConnection() as HttpURLConnection
-            conn.setRequestProperty("User-Agent", USER_AGENT)
-            conn.setRequestProperty("Accept", "application/json")
-            conn.connectTimeout = 20000
-            conn.readTimeout = 20000
-
-            val code = conn.responseCode
-            if (code == 200) {
-                val body = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                val json = JSONObject(body)
-                if (json.optString("status") == "running") {
-                    val url = json.optString("url")
-                    if (url.isNotEmpty()) {
-                        cachedBaseUrl = url
-                        return url
-                    }
-                }
-                lastError = "Tunnel status: ${json.optString("status")}"
-            } else {
-                lastError = "Tunnel HTTP $code"
-                conn.disconnect()
-            }
-            return null
-        }
-
-        fun triggerLaunch() {
-            try {
+        try {
+            repeat(20) {
                 val conn = URL(LAUNCH_ENDPOINT).openConnection() as HttpURLConnection
                 conn.setRequestProperty("User-Agent", USER_AGENT)
                 conn.setRequestProperty("Accept", "application/json")
                 conn.connectTimeout = 20000
                 conn.readTimeout = 20000
-                conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-            } catch (_: Exception) {
-                // Ignore launch failures; tunnel retry will surface the error.
-            }
-        }
 
-        try {
-            val existing = tryTunnel()
-            if (existing != null) return@withContext existing
+                val code = conn.responseCode
+                val body = try {
+                    if (code in 200..299) conn.inputStream.bufferedReader().readText()
+                    else conn.errorStream?.bufferedReader()?.readText().orEmpty()
+                } catch (_: Exception) {
+                    ""
+                } finally {
+                    conn.disconnect()
+                }
 
-            triggerLaunch()
-            repeat(8) {
+                if (body.isNotEmpty()) {
+                    val json = JSONObject(body)
+                    val status = json.optString("status")
+                    if (status == "running") {
+                        val url = json.optString("url")
+                        if (url.isNotEmpty()) {
+                            cachedBaseUrl = url
+                            return@withContext url
+                        }
+                    }
+                    if (status == "starting") {
+                        lastError = "Tunnel starting"
+                    } else if (status.isNotEmpty()) {
+                        lastError = "Tunnel status: $status"
+                    }
+                } else {
+                    lastError = "Launch HTTP $code"
+                }
+
                 kotlinx.coroutines.delay(1500)
-                val url = tryTunnel()
-                if (url != null) return@withContext url
             }
         } catch (e: Exception) {
             lastError = "Socket: ${e.message}"
