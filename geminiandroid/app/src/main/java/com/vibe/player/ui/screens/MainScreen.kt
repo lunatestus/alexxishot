@@ -110,9 +110,18 @@ fun MainScreen() {
 
     LaunchedEffect(isLoading, shouldRequestContentFocus, items.size) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
-            delay(100)
-            gridFirstItemFocusRequester.requestFocus()
-            shouldRequestContentFocus = false
+            // Wait slightly for the lazy list/grid to layout the first item
+            // before attempting to request focus on its requester.
+            for (i in 1..5) {
+                delay(100)
+                try {
+                    gridFirstItemFocusRequester.requestFocus()
+                    shouldRequestContentFocus = false
+                    break
+                } catch (e: Exception) {
+                    // Item not yet attached, retry
+                }
+            }
         }
     }
 
@@ -209,6 +218,7 @@ fun MainScreen() {
                             val itemKey = item.path
                             val focusRequester = remember(itemKey) { FocusRequester() }
                             val cardModifier = Modifier
+                                .then(if (index == 0) Modifier.focusRequester(gridFirstItemFocusRequester) else Modifier)
                                 .focusRequester(focusRequester)
                                 .onFocusChanged {
                                     if (it.isFocused) {
