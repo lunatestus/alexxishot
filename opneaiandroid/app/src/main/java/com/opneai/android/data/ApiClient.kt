@@ -13,6 +13,23 @@ object ApiClient {
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36"
 
     private var cachedBaseUrl: String? = null
+    private val VIDEO_EXTENSIONS = setOf(
+        "mp4",
+        "mkv",
+        "avi",
+        "mov",
+        "webm",
+        "flv",
+        "wmv",
+        "m4v",
+        "ts",
+        "mpg",
+        "mpeg",
+        "3gp",
+        "3g2",
+        "m2ts",
+        "mts"
+    )
 
     data class BaseUrlResult(val url: String?, val error: String?)
     data class FetchResult(val items: List<FileItem>, val error: String?)
@@ -98,7 +115,7 @@ object ApiClient {
                     val itemPath = item.getString("path")
                     val type = item.getString("type")
                     val size = item.optLong("size", 0L)
-                    if (!name.startsWith(".")) {
+                    if (!name.startsWith(".") && shouldIncludeItem(type, name)) {
                         result.add(FileItem(type = type, name = name, path = itemPath, size = size))
                     }
                 }
@@ -118,5 +135,14 @@ object ApiClient {
         val base = baseUrl ?: return null
         val encodedPath = URLEncoder.encode(path, "UTF-8")
         return "$base/stream?path=$encodedPath"
+    }
+
+    private fun shouldIncludeItem(type: String, name: String): Boolean {
+        if (type == "folder") return true
+        if (type != "file") return false
+        val dotIndex = name.lastIndexOf('.')
+        if (dotIndex <= 0 || dotIndex == name.length - 1) return false
+        val ext = name.substring(dotIndex + 1).lowercase()
+        return ext in VIDEO_EXTENSIONS
     }
 }
