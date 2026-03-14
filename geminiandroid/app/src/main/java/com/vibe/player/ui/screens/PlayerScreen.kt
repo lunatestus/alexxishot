@@ -583,6 +583,7 @@ fun PlayerSeekBar(
     var seekJob by remember { mutableStateOf<Job?>(null) }
     var seekDirection by remember { mutableIntStateOf(0) }
     var seekStartTime by remember { mutableLongStateOf(0L) }
+    var didSeekDuringHold by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -607,10 +608,13 @@ fun PlayerSeekBar(
         }
     }
 
+    val isDurationKnown = duration > 0L
+    val isSeekable = isDurationKnown && exoPlayer.isCurrentMediaItemSeekable
+
     val barHeight by animateDpAsState(targetValue = if (isProgressFocused) 8.dp else 3.dp)
     val dotSize by animateDpAsState(targetValue = if (isProgressFocused) 14.dp else 0.dp)
     
-    val progress = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f
+    val progress = if (isDurationKnown) currentPosition.toFloat() / duration.toFloat() else 0f
     // Don't animate the progress bar filling, as it fights with the user seeking
     val animatedProgress = progress.coerceIn(0f, 1f)
     val containerHeight = 16.dp
@@ -628,10 +632,11 @@ fun PlayerSeekBar(
             }
             .onKeyEvent { keyEvent ->
                 onInteraction()
-                
+
                 val isLeft = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT
                 val isRight = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-                
+                if (!isSeekable) return@onKeyEvent false
+
                 if (isLeft || isRight) {
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         lastSeekTime = System.currentTimeMillis()
@@ -642,19 +647,24 @@ fun PlayerSeekBar(
                             seekStartTime = System.currentTimeMillis()
                         }
                         seekDirection = newDirection
+                        didSeekDuringHold = false
                         if (seekJob == null) {
                             seekJob = scope.launch {
+                                // Wait briefly before treating as a long-press.
+                                delay(250)
                                 while (true) {
                                     val elapsed = (System.currentTimeMillis() - seekStartTime).coerceAtLeast(0L)
-                                    // Accelerate quickly: higher velocity the longer the hold.
-                                    val accelSteps = (elapsed / 250L).coerceAtMost(10L)
-                                    val baseVelocity = 80_000L // ms per second
-                                    val velocity = baseVelocity + accelSteps * 60_000L
-                                    val tickMs = 30L
+                                    // Smooth acceleration: faster the longer the hold, capped.
+                                    val accelSteps = (elapsed / 300L).coerceAtMost(12L)
+                                    val baseVelocity = 30_000L // ms per second
+                                    val velocity = baseVelocity + accelSteps * 45_000L
+                                    val tickMs = 60L
                                     val step = (velocity * tickMs / 1000L) * seekDirection
                                     val next = (currentPosition + step).coerceAtLeast(0L)
-                                    currentPosition = if (duration > 0) next.coerceAtMost(duration) else next
+                                    currentPosition = next.coerceAtMost(duration)
+                                    didSeekDuringHold = true
                                     lastSeekTime = System.currentTimeMillis()
+                                    onInteraction()
                                     delay(tickMs)
                                 }
                             }
@@ -665,7 +675,12 @@ fun PlayerSeekBar(
                         seekStartTime = 0L
                         seekJob?.cancel()
                         seekJob = null
-                        // Commit the final position to ExoPlayer once user releases the button
+                        if (!didSeekDuringHold) {
+                            val step = 10_000L * seekDirection
+                            val next = (currentPosition + step).coerceAtLeast(0L).coerceAtMost(duration)
+                            currentPosition = next
+                        }
+                        // Commit the final position to ExoPlayer once user releases the button.
                         exoPlayer.seekTo(currentPosition)
                         true
                     } else {
@@ -682,12 +697,12 @@ fun PlayerSeekBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                formatTime(currentPosition),
+                if (isDurationKnown) formatTime(currentPosition) else "--:--",
                 color = Color(0xCCFFFFFF),
                 fontSize = 12.sp,
                 fontFamily = DmSans,
                 maxLines = 1,
-                modifier = Modifier.width(60.dp)
+                modifier = Modifier.width(72.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             BoxWithConstraints(
@@ -712,7 +727,8 @@ fun PlayerSeekBar(
                             .background(ProgressFill)
                     )
                 }
-                val dotOffset = (maxWidth * animatedProgress - dotSize / 2).coerceAtLeast(0.dp)
+                val maxOffset = (maxWidth - dotSize).coerceAtLeast(0.dp)
+                val dotOffset = (maxWidth * animatedProgress - dotSize / 2).coerceIn(0.dp, maxOffset)
                 Box(
                     modifier = Modifier
                         .offset(x = dotOffset)
@@ -729,7 +745,7 @@ fun PlayerSeekBar(
                 fontFamily = DmSans,
                 maxLines = 1,
                 textAlign = TextAlign.End,
-                modifier = Modifier.width(60.dp)
+                modifier = Modifier.width(72.dp)
             )
         }
     }
@@ -1127,9 +1143,14 @@ private fun formatsSimilar(a: Format, b: Format): Boolean {
 
 fun formatTime(milliseconds: Long): String {
     val totalSeconds = (milliseconds / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds / 60) % 60
     val seconds = totalSeconds % 60
-    return "%02d:%02d".format(minutes, seconds)
+    return if (hours > 0) {
+        "%d:%02d:%02d".format(hours, minutes, seconds)
+    } else {
+        "%02d:%02d".format(minutes, seconds)
+    }
 }
 
 fun formatTimeOrUnknown(milliseconds: Long): String {
