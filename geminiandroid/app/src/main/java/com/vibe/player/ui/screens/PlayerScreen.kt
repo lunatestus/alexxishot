@@ -101,6 +101,8 @@ fun PlayerScreen(
     var isBuffering by remember { mutableStateOf(false) }
     var retryCount by remember { mutableIntStateOf(0) }
     var retryToken by remember { mutableLongStateOf(0L) }
+    var pendingAudioFallbackParams by remember { mutableStateOf<DefaultTrackSelector.Parameters?>(null) }
+    var pendingAudioFallbackLabel by remember { mutableStateOf<String?>(null) }
     var showCaptionMenu by remember { mutableStateOf(false) }
     var showAudioMenu by remember { mutableStateOf(false) }
     val isMenuOpen = showCaptionMenu || showAudioMenu
@@ -124,6 +126,28 @@ fun PlayerScreen(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                val isAudioDecodeError = when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+                    PlaybackException.ERROR_CODE_DECODING_FAILED,
+                    PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED,
+                    PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED -> true
+                    else -> false
+                }
+                val fallbackParams = pendingAudioFallbackParams
+                if (isAudioDecodeError && fallbackParams != null) {
+                    trackSelector.parameters = fallbackParams
+                    pendingAudioFallbackParams = null
+                    val label = pendingAudioFallbackLabel
+                    pendingAudioFallbackLabel = null
+                    playbackError = if (!label.isNullOrBlank()) {
+                        "Audio track \"$label\" isn't supported on this device. Reverted to previous."
+                    } else {
+                        "Selected audio track isn't supported on this device. Reverted to previous."
+                    }
+                    retryCount = 0
+                    retryToken = System.currentTimeMillis()
+                    return
+                }
                 playbackError = error.message ?: "Playback error"
                 isBuffering = false
                 if (retryCount < 2) {
@@ -139,6 +163,10 @@ fun PlayerScreen(
                 isBuffering = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_READY && playbackError != null) {
                     playbackError = null
+                }
+                if (state == Player.STATE_READY) {
+                    pendingAudioFallbackParams = null
+                    pendingAudioFallbackLabel = null
                 }
             }
         }
@@ -499,6 +527,10 @@ fun PlayerScreen(
                 exoPlayer = exoPlayer,
                 trackSelector = trackSelector,
                 trackType = menuType,
+                onAudioSelectionAttempt = { previousParams, option ->
+                    pendingAudioFallbackParams = previousParams
+                    pendingAudioFallbackLabel = option.label
+                },
                 onDismiss = {
                     showCaptionMenu = false
                     showAudioMenu = false
@@ -798,6 +830,7 @@ private data class TrackOption(
     val rendererIndex: Int?,
     val groupIndex: Int?,
     val isSelected: Boolean,
+    val isSupported: Boolean,
     val isOff: Boolean = false,
     val isAuto: Boolean = false
 )
@@ -808,6 +841,7 @@ private fun TrackSelectionMenu(
     exoPlayer: ExoPlayer,
     trackSelector: DefaultTrackSelector,
     trackType: Int,
+    onAudioSelectionAttempt: (DefaultTrackSelector.Parameters, TrackOption) -> Unit,
     onDismiss: () -> Unit
 ) {
     val tracks = exoPlayer.currentTracks
@@ -834,6 +868,7 @@ private fun TrackSelectionMenu(
                 rendererIndex = rendererIndex,
                 groupIndex = null,
                 isSelected = autoSelected,
+                isSupported = true,
                 isAuto = true
             )
         )
@@ -846,6 +881,7 @@ private fun TrackSelectionMenu(
                     rendererIndex = rendererIndex,
                     groupIndex = null,
                     isSelected = isTypeDisabled,
+                    isSupported = true,
                     isOff = true
                 )
             )
@@ -866,7 +902,8 @@ private fun TrackSelectionMenu(
                         trackIndex = i,
                         rendererIndex = rendererIndex,
                         groupIndex = groupIndex,
-                        isSelected = group.isTrackSelected(i) && !isTypeDisabled
+                        isSelected = group.isTrackSelected(i) && !isTypeDisabled,
+                        isSupported = group.isTrackSupported(i)
                     )
                 )
             }
@@ -929,24 +966,33 @@ private fun TrackSelectionMenu(
                 itemsIndexed(options) { index, option ->
                     var isFocused by remember { mutableStateOf(false) }
                     val isSelected = option.isSelected
+                    val isEnabled = option.isSupported
                     val rowBg = when {
                         isFocused -> Color.White
                         isSelected -> Color(0x1AFFFFFF)
                         else -> Color.Transparent
                     }
-                    val textColor = if (isFocused) Color.Black else Color.White
+                    val textColor = when {
+                        !isEnabled -> Color(0x66FFFFFF)
+                        isFocused -> Color.Black
+                        else -> Color.White
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(focusRequesters[index])
                             .onFocusChanged { isFocused = it.isFocused }
-                            .focusable()
+                            .focusable(isEnabled)
                             .onKeyEvent { keyEvent ->
+                                if (!isEnabled) return@onKeyEvent false
                                 if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                                     when (keyEvent.nativeKeyEvent.keyCode) {
                                         KeyEvent.KEYCODE_DPAD_CENTER,
                                         KeyEvent.KEYCODE_ENTER,
                                         KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                            if (trackType == C.TRACK_TYPE_AUDIO) {
+                                                onAudioSelectionAttempt(trackSelector.parameters, option)
+                                            }
                                             applyTrackSelection(trackSelector, trackType, option)
                                             onDismiss()
                                             true
@@ -961,7 +1007,10 @@ private fun TrackSelectionMenu(
                                     false
                                 }
                             }
-                            .clickable {
+                            .clickable(enabled = isEnabled) {
+                                if (trackType == C.TRACK_TYPE_AUDIO) {
+                                    onAudioSelectionAttempt(trackSelector.parameters, option)
+                                }
                                 applyTrackSelection(trackSelector, trackType, option)
                                 onDismiss()
                             }
@@ -1001,6 +1050,7 @@ private fun applyTrackSelection(
     trackType: Int,
     option: TrackOption
 ) {
+    if (!option.isSupported) return
     val rendererIndex = option.rendererIndex ?: return
     val mapped = trackSelector.currentMappedTrackInfo ?: return
     val trackGroups = mapped.getTrackGroups(rendererIndex)
