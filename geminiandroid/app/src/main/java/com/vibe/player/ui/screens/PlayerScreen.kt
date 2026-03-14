@@ -5,6 +5,7 @@ package com.vibe.player.ui.screens
 import android.view.KeyEvent
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.graphics.Color as AndroidColor
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -35,21 +36,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.C
 import androidx.media3.common.Tracks
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.core.content.res.ResourcesCompat
 import com.vibe.player.R
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
@@ -65,16 +73,24 @@ fun PlayerScreen(
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
-    val streamUrl = remember(item.path) { ApiClient.getStreamUrl(item.path) }
+    val lifecycleOwner = LocalLifecycleOwner.current
     
     val trackSelector = remember { DefaultTrackSelector(context) }
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
-            .setBackBuffer(60_000, true)
+            .setBackBuffer(20_000, false)
             .build()
         ExoPlayer.Builder(context)
             .setLoadControl(loadControl)
             .setTrackSelector(trackSelector)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                    .build(),
+                true
+            )
+            .setHandleAudioBecomingNoisy(true)
             .build()
     }
 
@@ -82,9 +98,13 @@ fun PlayerScreen(
     var showControls by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackError by remember { mutableStateOf<String?>(null) }
+    var isBuffering by remember { mutableStateOf(false) }
+    var retryCount by remember { mutableIntStateOf(0) }
+    var retryToken by remember { mutableLongStateOf(0L) }
     var showCaptionMenu by remember { mutableStateOf(false) }
     var showAudioMenu by remember { mutableStateOf(false) }
     val isMenuOpen = showCaptionMenu || showAudioMenu
+    val scope = rememberCoroutineScope()
     
     val seekbarFocusRequester = remember { FocusRequester() }
     val playPauseFocusRequester = remember { FocusRequester() }
@@ -94,6 +114,7 @@ fun PlayerScreen(
     val audioFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     val screenFocusRequester = remember { FocusRequester() }
+    var resumeOnStart by remember { mutableStateOf(false) }
 
     // Listen to exoPlayer play state changes
     DisposableEffect(exoPlayer) {
@@ -104,6 +125,21 @@ fun PlayerScreen(
 
             override fun onPlayerError(error: PlaybackException) {
                 playbackError = error.message ?: "Playback error"
+                isBuffering = false
+                if (retryCount < 2) {
+                    retryCount += 1
+                    scope.launch {
+                        delay(800L * retryCount)
+                        retryToken = System.currentTimeMillis()
+                    }
+                }
+            }
+
+            override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = state == Player.STATE_BUFFERING
+                if (state == Player.STATE_READY && playbackError != null) {
+                    playbackError = null
+                }
             }
         }
         exoPlayer.addListener(listener)
@@ -114,8 +150,37 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(streamUrl) {
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE,
+                Lifecycle.Event.ON_STOP -> {
+                    resumeOnStart = exoPlayer.isPlaying
+                    exoPlayer.pause()
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    if (resumeOnStart && playbackError == null) {
+                        exoPlayer.play()
+                    }
+                }
+                else -> Unit
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    suspend fun resolveStreamUrl(forceRefresh: Boolean): String? {
+        if (forceRefresh) ApiClient.resetBaseUrl()
+        val base = ApiClient.getBaseUrl()
+        return base?.let { ApiClient.getStreamUrl(item.path) }
+    }
+
+    LaunchedEffect(item.path, retryToken) {
         playbackError = null
+        val streamUrl = resolveStreamUrl(forceRefresh = retryToken > 0L)
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
         if (!streamUrl.isNullOrBlank()) {
@@ -123,8 +188,13 @@ fun PlayerScreen(
             exoPlayer.prepare()
             exoPlayer.playWhenReady = true
         } else {
-            playbackError = "Stream unavailable"
+            playbackError = ApiClient.lastError ?: "Stream unavailable"
         }
+    }
+
+    LaunchedEffect(item.path) {
+        retryCount = 0
+        retryToken = 0L
     }
 
     LaunchedEffect(Unit) {
@@ -222,6 +292,7 @@ fun PlayerScreen(
     ) {
         AndroidView(
             factory = {
+                val subtitleTypeface = ResourcesCompat.getFont(it, R.font.dm_sans_regular)
                 PlayerView(it).apply {
                     player = exoPlayer
                     useController = false
@@ -229,6 +300,19 @@ fun PlayerScreen(
                     isFocusable = false
                     isFocusableInTouchMode = false
                     descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                    subtitleView?.apply {
+                        typeface = subtitleTypeface
+                        setStyle(
+                            CaptionStyleCompat(
+                                AndroidColor.WHITE,
+                                AndroidColor.BLACK,
+                                AndroidColor.TRANSPARENT,
+                                CaptionStyleCompat.EDGE_TYPE_NONE,
+                                AndroidColor.BLACK,
+                                subtitleTypeface
+                            )
+                        )
+                    }
                     layoutParams = FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -444,6 +528,7 @@ fun PlayerSeekBar(
     val scope = rememberCoroutineScope()
     var seekJob by remember { mutableStateOf<Job?>(null) }
     var seekDirection by remember { mutableIntStateOf(0) }
+    var seekStartTime by remember { mutableLongStateOf(0L) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -496,20 +581,31 @@ fun PlayerSeekBar(
                 if (isLeft || isRight) {
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         lastSeekTime = System.currentTimeMillis()
-                        seekDirection = if (isLeft) -1 else 1
+                        val newDirection = if (isLeft) -1 else 1
+                        if (seekDirection != newDirection) {
+                            seekStartTime = System.currentTimeMillis()
+                        } else if (seekStartTime == 0L) {
+                            seekStartTime = System.currentTimeMillis()
+                        }
+                        seekDirection = newDirection
                         if (seekJob == null) {
                             seekJob = scope.launch {
                                 while (true) {
-                                    val step = 750L * seekDirection
+                                    val elapsed = (System.currentTimeMillis() - seekStartTime).coerceAtLeast(0L)
+                                    // Accelerate the seek speed the longer the user holds the button.
+                                    val accelSteps = (elapsed / 400L).coerceAtMost(8L)
+                                    val baseStep = 2000L
+                                    val step = (baseStep + accelSteps * 1500L) * seekDirection
                                     val next = (currentPosition + step).coerceAtLeast(0L)
                                     currentPosition = if (duration > 0) next.coerceAtMost(duration) else next
-                                    delay(50)
+                                    delay(40)
                                 }
                             }
                         }
                         true
                     } else if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
                         lastSeekTime = System.currentTimeMillis()
+                        seekStartTime = 0L
                         seekJob?.cancel()
                         seekJob = null
                         // Commit the final position to ExoPlayer once user releases the button
@@ -575,7 +671,7 @@ fun PlayerSeekBar(
                 fontSize = 12.sp,
                 fontFamily = DmSans,
                 maxLines = 1,
-                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                textAlign = TextAlign.End,
                 modifier = Modifier.width(60.dp)
             )
         }
