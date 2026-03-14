@@ -1,6 +1,15 @@
 package com.opneai.android
 
+import android.app.DownloadManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -23,12 +32,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.opneai.android.data.ApiClient
 import com.opneai.android.data.FileItem
 import com.opneai.android.ui.screens.PlayerScreen
 import com.opneai.android.ui.theme.OpenAIAndroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,6 +59,7 @@ class MainActivity : ComponentActivity() {
 private fun FileBrowserScreen() {
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
@@ -57,6 +69,42 @@ private fun FileBrowserScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
+    var upgradeDownloadId by remember { mutableLongStateOf(-1L) }
+
+    DisposableEffect(upgradeDownloadId) {
+        if (upgradeDownloadId == -1L) return@DisposableEffect onDispose { }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L)
+                if (id != upgradeDownloadId) return
+                val file = File(ctx.externalCacheDir, "updates/app-debug.apk")
+                if (!file.exists()) {
+                    Toast.makeText(ctx, "Download failed", Toast.LENGTH_SHORT).show()
+                    return
+                }
+                val apkUri: Uri = FileProvider.getUriForFile(
+                    ctx,
+                    "${ctx.packageName}.fileprovider",
+                    file
+                )
+                val installIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(apkUri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                ctx.startActivity(installIntent)
+            }
+        }
+        val filter = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+        }
+    }
 
     fun loadPath(path: String, forceRefresh: Boolean = false) {
         currentPath = path
@@ -186,7 +234,10 @@ private fun FileBrowserScreen() {
                     }
                     Spacer(Modifier.height(8.dp))
                     OutlinedButton(
-                        onClick = { scope.launch { drawerState.close() } },
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            startUpgradeDownload(context) { id -> upgradeDownloadId = id }
+                        },
                         border = BorderStroke(1.dp, colorScheme.onSurface),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = colorScheme.onSurface
@@ -340,4 +391,30 @@ private fun FileRow(item: FileItem, onClick: () -> Unit) {
             }
         }
     }
+}
+
+private const val UPGRADE_APK_URL =
+    "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk"
+
+private fun startUpgradeDownload(context: Context, onEnqueued: (Long) -> Unit) {
+    val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+    val targetDir = File(context.externalCacheDir, "updates")
+    if (!targetDir.exists()) {
+        targetDir.mkdirs()
+    }
+    val targetFile = File(targetDir, "app-debug.apk")
+    if (targetFile.exists()) {
+        targetFile.delete()
+    }
+    val request = DownloadManager.Request(Uri.parse(UPGRADE_APK_URL)).apply {
+        setTitle("OpenAI Android Update")
+        setDescription("Downloading update...")
+        setAllowedOverMetered(true)
+        setAllowedOverRoaming(true)
+        setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+        setDestinationUri(Uri.fromFile(targetFile))
+    }
+    val downloadId = manager.enqueue(request)
+    onEnqueued(downloadId)
+    Toast.makeText(context, "Downloading update…", Toast.LENGTH_SHORT).show()
 }
