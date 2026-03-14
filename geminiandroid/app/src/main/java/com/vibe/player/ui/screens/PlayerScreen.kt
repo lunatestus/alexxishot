@@ -98,6 +98,7 @@ fun PlayerScreen(
     var showControls by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackError by remember { mutableStateOf<String?>(null) }
+    var playbackState by remember { mutableIntStateOf(Player.STATE_IDLE) }
     var isBuffering by remember { mutableStateOf(false) }
     var retryCount by remember { mutableIntStateOf(0) }
     var retryToken by remember { mutableLongStateOf(0L) }
@@ -144,8 +145,11 @@ fun PlayerScreen(
                     } else {
                         "Selected audio track isn't supported on this device. Reverted to previous."
                     }
+                    isBuffering = false
+                    val shouldResume = exoPlayer.playWhenReady
+                    exoPlayer.prepare()
+                    exoPlayer.playWhenReady = shouldResume
                     retryCount = 0
-                    retryToken = System.currentTimeMillis()
                     return
                 }
                 playbackError = error.message ?: "Playback error"
@@ -160,6 +164,7 @@ fun PlayerScreen(
             }
 
             override fun onPlaybackStateChanged(state: Int) {
+                playbackState = state
                 isBuffering = state == Player.STATE_BUFFERING
                 if (state == Player.STATE_READY && playbackError != null) {
                     playbackError = null
@@ -220,8 +225,18 @@ fun PlayerScreen(
     }
 
     LaunchedEffect(item.path) {
+        // Reset track overrides when loading a new item to avoid stale audio selections.
+        trackSelector.parameters = trackSelector.parameters.buildUpon()
+            .clearSelectionOverrides()
+            .setTrackTypeDisabled(C.TRACK_TYPE_AUDIO, false)
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+            .build()
         retryCount = 0
         retryToken = 0L
+        pendingAudioFallbackParams = null
+        pendingAudioFallbackLabel = null
+        showCaptionMenu = false
+        showAudioMenu = false
     }
 
     LaunchedEffect(Unit) {
@@ -483,7 +498,7 @@ fun PlayerScreen(
                                 left = forwardFocusRequester
                                 right = audioFocusRequester
                             },
-                            enabled = showControls
+                            enabled = showControls && playbackState == Player.STATE_READY
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         PlayerButton(
@@ -500,7 +515,7 @@ fun PlayerScreen(
                                 left = captionFocusRequester
                                 right = settingsFocusRequester
                             },
-                            enabled = showControls
+                            enabled = showControls && playbackState == Player.STATE_READY
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         PlayerButton(
@@ -894,7 +909,7 @@ private fun TrackSelectionMenu(
                 val label = format.label ?: format.language ?: "Track ${i + 1}"
                 val groupIndex = rendererIndex?.let { rIdx ->
                     mapped?.getTrackGroups(rIdx)?.indexOf(trackGroup)
-                }
+                }?.takeIf { it >= 0 }
                 built.add(
                     TrackOption(
                         label = label,
@@ -1054,6 +1069,7 @@ private fun applyTrackSelection(
     val rendererIndex = option.rendererIndex ?: return
     val mapped = trackSelector.currentMappedTrackInfo ?: return
     val trackGroups = mapped.getTrackGroups(rendererIndex)
+    if (trackGroups.length == 0) return
 
     val paramsBuilder = trackSelector.parameters.buildUpon()
         .setTrackTypeDisabled(trackType, option.isOff)
@@ -1063,10 +1079,15 @@ private fun applyTrackSelection(
         // Auto = no override, renderer enabled
         paramsBuilder.setTrackTypeDisabled(trackType, false)
     } else if (!option.isOff && option.groupIndex != null && option.trackIndex != null) {
+        val groupIndex = option.groupIndex
+        val trackIndex = option.trackIndex
+        if (groupIndex !in 0 until trackGroups.length) return
+        val group = trackGroups[groupIndex]
+        if (trackIndex !in 0 until group.length) return
         paramsBuilder.setSelectionOverride(
             rendererIndex,
             trackGroups,
-            DefaultTrackSelector.SelectionOverride(option.groupIndex, option.trackIndex)
+            DefaultTrackSelector.SelectionOverride(groupIndex, trackIndex)
         )
     }
 
