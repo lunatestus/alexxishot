@@ -145,25 +145,37 @@ fun MainScreen() {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
                 }
             } else if (errorMessage != null && errorMessage != "Empty folder") {
+                val friendlyMessage = when {
+                    errorMessage!!.startsWith("Tunnel") -> "Backend is offline. Start it and try again."
+                    errorMessage!!.startsWith("Socket") -> "Network issue. Check connection and retry."
+                    errorMessage!!.startsWith("API HTTP") -> "Server error. Try again."
+                    errorMessage!!.startsWith("API error") -> "Server error. Try again."
+                    else -> "Something went wrong. Try again."
+                }
                 Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text(
-                        "Error: $errorMessage",
+                        friendlyMessage,
                         color = TextColor,
                         fontSize = 16.sp,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(20.dp)
                     )
                     Button(
-                        onClick = { loadPath(currentPath) },
+                        onClick = { 
+                            ApiClient.resetBaseUrl()
+                            loadPath(currentPath) 
+                        },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = CardBg,
+                            containerColor = Color.Transparent,
                             contentColor = TextColor
                         ),
-                        border = BorderStroke(1.dp, ViewToggleBorder)
+                        border = BorderStroke(1.dp, ViewToggleBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Retry")
+                        Text("Reload")
                     }
                 }
             } else if (items.isEmpty()) {
