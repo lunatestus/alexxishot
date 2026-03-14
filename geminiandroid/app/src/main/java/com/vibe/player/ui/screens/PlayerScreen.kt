@@ -414,19 +414,6 @@ fun PlayerScreen(
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
             Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
-                Text(
-                    text = truncateTitle(item.name, 45),
-                    color = TextColor,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Normal,
-                    fontFamily = DmSans,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-
                 PlayerSeekBar(
                     exoPlayer = exoPlayer,
                     onInteraction = { lastInteraction = System.currentTimeMillis() },
@@ -544,6 +531,21 @@ fun PlayerScreen(
                 }
             }
         }
+
+        Text(
+            text = item.name,
+            color = TextColor,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Normal,
+            fontFamily = DmSans,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .fillMaxWidth()
+                .alpha(controlsAlpha)
+        )
 
         if (isMenuOpen) {
             val menuType = if (showCaptionMenu) C.TRACK_TYPE_TEXT else C.TRACK_TYPE_AUDIO
@@ -1158,11 +1160,4 @@ fun formatTime(milliseconds: Long): String {
 fun formatTimeOrUnknown(milliseconds: Long): String {
     if (milliseconds <= 0L) return "--:--"
     return formatTime(milliseconds)
-}
-
-private fun truncateTitle(title: String, maxChars: Int): String {
-    if (maxChars <= 0) return ""
-    if (title.length <= maxChars) return title
-    if (maxChars <= 3) return title.take(maxChars)
-    return title.take(maxChars - 3) + "..."
 }
