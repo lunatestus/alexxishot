@@ -52,8 +52,8 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.C
 import androidx.media3.common.Format
 import androidx.media3.common.TrackGroup
-import androidx.media3.common.TrackGroupArray
 import androidx.media3.common.Tracks
+import androidx.media3.exoplayer.source.TrackGroupArray
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
