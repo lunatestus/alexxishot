@@ -69,11 +69,8 @@ fun Sidebar(
             .background(SidebarBg)
             .focusRequester(focusRequester)
             .onFocusChanged { onFocusChange(it.hasFocus) }
-            .padding(top = 24.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
+        Column {
             val hasToggle = true
             navItems.forEachIndexed { index, item ->
                 SidebarItem(

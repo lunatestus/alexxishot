@@ -64,6 +64,9 @@ fun MainScreen() {
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
+    val gridSpanCount by remember {
+        derivedStateOf { gridState.layoutInfo.spanCount }
+    }
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
@@ -153,11 +156,20 @@ fun MainScreen() {
             } else if (isListView) {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
+                        val isLastItem = index == items.lastIndex
+                        val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                            .then(
+                                if (isLastItem) {
+                                    Modifier.focusProperties { down = FocusRequester.Cancel }
+                                } else {
+                                    Modifier
+                                }
+                            )
                         MediaCard(
                             item = item, 
                             index = index, 
                             isListView = true, 
-                            modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                            modifier = cardModifier,
                             onClick = {
                                 if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
                                 else { playingItem = item }
@@ -168,11 +180,20 @@ fun MainScreen() {
             } else {
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
+                        val isLastRow = gridSpanCount > 0 && index >= (items.size - gridSpanCount).coerceAtLeast(0)
+                        val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                            .then(
+                                if (isLastRow) {
+                                    Modifier.focusProperties { down = FocusRequester.Cancel }
+                                } else {
+                                    Modifier
+                                }
+                            )
                         MediaCard(
                             item = item, 
                             index = index, 
                             isListView = false, 
-                            modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
+                            modifier = cardModifier,
                             onClick = {
                                 if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
                                 else { playingItem = item }

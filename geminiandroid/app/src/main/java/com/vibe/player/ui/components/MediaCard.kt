@@ -62,7 +62,7 @@ fun MediaCard(
         .clickable { onClick() }
         .clip(RoundedCornerShape(10.dp))
         .border(
-            width = if (isFocused) 2.dp else 0.dp,
+            width = if (isFocused) 3.dp else 0.dp,
             color = borderColor,
             shape = RoundedCornerShape(10.dp)
         )
@@ -81,7 +81,7 @@ fun MediaCard(
                         .width(100.dp)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF0044CC)),
+                        .background(AccentColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -116,7 +116,7 @@ fun MediaCard(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF0044CC)),
+                        .background(AccentColor),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
