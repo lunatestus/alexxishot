@@ -590,13 +590,16 @@ fun PlayerSeekBar(
                             seekJob = scope.launch {
                                 while (true) {
                                     val elapsed = (System.currentTimeMillis() - seekStartTime).coerceAtLeast(0L)
-                                    // Accelerate the seek speed the longer the user holds the button.
-                                    val accelSteps = (elapsed / 400L).coerceAtMost(8L)
-                                    val baseStep = 2000L
-                                    val step = (baseStep + accelSteps * 1500L) * seekDirection
+                                    // Accelerate quickly: higher velocity the longer the hold.
+                                    val accelSteps = (elapsed / 250L).coerceAtMost(10L)
+                                    val baseVelocity = 80_000L // ms per second
+                                    val velocity = baseVelocity + accelSteps * 60_000L
+                                    val tickMs = 30L
+                                    val step = (velocity * tickMs / 1000L) * seekDirection
                                     val next = (currentPosition + step).coerceAtLeast(0L)
                                     currentPosition = if (duration > 0) next.coerceAtMost(duration) else next
-                                    delay(40)
+                                    lastSeekTime = System.currentTimeMillis()
+                                    delay(tickMs)
                                 }
                             }
                         }
