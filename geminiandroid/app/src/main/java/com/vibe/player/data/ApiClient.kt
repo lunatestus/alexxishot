@@ -8,7 +8,7 @@ import java.net.URL
 import java.net.URLEncoder
 
 object ApiClient {
-    private const val LAUNCH_ENDPOINT = "https://lunatestus003--vibe-backend-launch.modal.run"
+    private const val LAUNCH_ENDPOINT = "https://lunatestus003--vibe-backend-tunnel.modal.run"
     // Using a standard Chrome/Android User-Agent to avoid Cloudflare/Modal blocking
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36"
 
