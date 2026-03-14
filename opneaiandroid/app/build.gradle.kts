@@ -68,6 +68,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.tv:tv-foundation:1.0.0-alpha10")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     val media3Version = "1.2.1"
     implementation("androidx.media3:media3-exoplayer:$media3Version")

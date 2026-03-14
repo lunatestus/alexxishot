@@ -21,9 +21,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.tv.foundation.lazy.TvLazyColumn
+import androidx.tv.foundation.lazy.itemsIndexed
+import androidx.tv.foundation.lazy.rememberTvLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Description
@@ -69,7 +69,7 @@ private fun FileBrowserScreen() {
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val context = androidx.compose.ui.platform.LocalContext.current
-    val listState = rememberLazyListState()
+    val listState = rememberTvLazyListState()
 
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
@@ -324,7 +324,7 @@ private fun FileBrowserScreen() {
                     }
                 }
                 else -> {
-                    LazyColumn(
+                    TvLazyColumn(
                         state = listState,
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -333,17 +333,7 @@ private fun FileBrowserScreen() {
                             FileRow(
                                 item = item,
                                 focusRequester = if (index == 0) firstItemFocusRequester else null,
-                                onFocused = {
-                                    focusedIndex = index
-                                    val visible = listState.layoutInfo.visibleItemsInfo
-                                    if (visible.isNotEmpty()) {
-                                        val first = visible.first().index
-                                        val last = visible.last().index
-                                        if (index < first || index > last) {
-                                            scope.launch { listState.scrollToItem(index) }
-                                        }
-                                    }
-                                }
+                                onFocused = { focusedIndex = index }
                             ) {
                                 if (item.type == "folder") {
                                     history = history + currentPath
