@@ -81,7 +81,7 @@ fun PlayerScreen(
     val trackSelector = remember {
         DefaultTrackSelector(context).apply {
             parameters = buildUponParameters()
-                .setTunnelingEnabled(false)
+                .setMaxAudioChannelCount(6)
                 .build()
         }
     }
