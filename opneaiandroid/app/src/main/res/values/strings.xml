@@ -2,4 +2,10 @@
 <resources>
     <string name="app_name">OpenAI Android</string>
     <string name="hello_text">OpenAI Android starter screen</string>
+    <string name="menu">Menu</string>
+    <string name="refresh">Refresh</string>
+    <string name="sidebar_title">OpenAI Files</string>
+    <string name="sidebar_status_idle">Ready</string>
+    <string name="sidebar_home">Home</string>
+    <string name="item_icon">Item</string>
 </resources>
