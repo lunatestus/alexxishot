@@ -172,15 +172,14 @@ fun PlayerScreen(
         }
     }
 
-    suspend fun resolveStreamUrl(forceRefresh: Boolean): String? {
-        if (forceRefresh) ApiClient.resetBaseUrl()
-        val base = ApiClient.getBaseUrl()
-        return base?.let { ApiClient.getStreamUrl(item.path) }
+    suspend fun resolveStreamUrl(forceRefresh: Boolean): ApiClient.BaseUrlResult {
+        return ApiClient.getBaseUrl(forceRefresh = forceRefresh)
     }
 
     LaunchedEffect(item.path, retryToken) {
         playbackError = null
-        val streamUrl = resolveStreamUrl(forceRefresh = retryToken > 0L)
+        val baseResult = resolveStreamUrl(forceRefresh = retryToken > 0L)
+        val streamUrl = ApiClient.getStreamUrl(item.path, baseResult.url)
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
         if (!streamUrl.isNullOrBlank()) {
@@ -188,7 +187,7 @@ fun PlayerScreen(
             exoPlayer.prepare()
             exoPlayer.playWhenReady = true
         } else {
-            playbackError = ApiClient.lastError ?: "Stream unavailable"
+            playbackError = baseResult.error ?: "Stream unavailable"
         }
     }
 

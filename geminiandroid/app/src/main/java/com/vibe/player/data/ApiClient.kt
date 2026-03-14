@@ -13,21 +13,24 @@ object ApiClient {
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.99 Mobile Safari/537.36"
 
     private var cachedBaseUrl: String? = null
-    var lastError: String? = null
+    data class BaseUrlResult(val url: String?, val error: String?)
+    data class FetchResult(val items: List<FileItem>, val error: String?)
 
     fun resetBaseUrl() {
         cachedBaseUrl = null
     }
 
-    suspend fun getBaseUrl(): String? = withContext(Dispatchers.IO) {
-        cachedBaseUrl?.let { return@withContext it }
+    suspend fun getBaseUrl(forceRefresh: Boolean = false): BaseUrlResult = withContext(Dispatchers.IO) {
+        if (forceRefresh) cachedBaseUrl = null
+        cachedBaseUrl?.let { return@withContext BaseUrlResult(it, null) }
+        var lastError: String? = null
         try {
-            repeat(20) {
+            repeat(8) {
                 val conn = URL(LAUNCH_ENDPOINT).openConnection() as HttpURLConnection
                 conn.setRequestProperty("User-Agent", USER_AGENT)
                 conn.setRequestProperty("Accept", "application/json")
-                conn.connectTimeout = 20000
-                conn.readTimeout = 20000
+                conn.connectTimeout = 8000
+                conn.readTimeout = 8000
 
                 val code = conn.responseCode
                 val body = try {
@@ -46,40 +49,42 @@ object ApiClient {
                         val url = json.optString("url")
                         if (url.isNotEmpty()) {
                             cachedBaseUrl = url
-                            return@withContext url
+                            return@withContext BaseUrlResult(url, null)
                         }
                     }
-                    if (status == "starting") {
-                        lastError = "Tunnel starting"
+                    lastError = if (status == "starting") {
+                        "Tunnel starting"
                     } else if (status.isNotEmpty()) {
-                        lastError = "Tunnel status: $status"
+                        "Tunnel status: $status"
+                    } else {
+                        "Launch HTTP $code"
                     }
                 } else {
                     lastError = "Launch HTTP $code"
                 }
 
-                kotlinx.coroutines.delay(1500)
+                kotlinx.coroutines.delay(1200)
             }
         } catch (e: Exception) {
-            lastError = "Socket: ${e.message}"
             e.printStackTrace()
+            return@withContext BaseUrlResult(null, "Socket: ${e.message}")
         }
 
-        null
+        BaseUrlResult(null, lastError ?: "Tunnel timeout")
     }
 
-    suspend fun fetchFolder(path: String): List<FileItem> = withContext(Dispatchers.IO) {
-        lastError = null
-        val base = getBaseUrl() 
-        if (base == null) return@withContext emptyList()
+    suspend fun fetchFolder(path: String): FetchResult = withContext(Dispatchers.IO) {
+        val baseResult = getBaseUrl()
+        val base = baseResult.url
+        if (base == null) return@withContext FetchResult(emptyList(), baseResult.error ?: "Backend unavailable")
         
         try {
             val encodedPath = URLEncoder.encode(path, "UTF-8")
             val conn = URL("$base/list?path=$encodedPath").openConnection() as HttpURLConnection
             conn.setRequestProperty("User-Agent", USER_AGENT)
             conn.setRequestProperty("Accept", "application/json")
-            conn.connectTimeout = 20000
-            conn.readTimeout = 20000
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
             
             val code = conn.responseCode
             if (code == 200) {
@@ -97,21 +102,20 @@ object ApiClient {
                         result.add(FileItem(type = type, name = name, path = itemPath))
                     }
                 }
-                if (result.isEmpty()) { lastError = "Empty folder" }
-                return@withContext result
+                val err = if (result.isEmpty()) "Empty folder" else null
+                return@withContext FetchResult(result, err)
             } else {
-                lastError = "API HTTP $code"
                 conn.disconnect()
+                return@withContext FetchResult(emptyList(), "API HTTP $code")
             }
         } catch (e: Exception) {
-            lastError = "API error: ${e.message}"
             e.printStackTrace()
+            return@withContext FetchResult(emptyList(), "API error: ${e.message}")
         }
-        emptyList()
     }
 
-    fun getStreamUrl(path: String): String? {
-        val base = cachedBaseUrl ?: return null
+    fun getStreamUrl(path: String, baseUrl: String? = cachedBaseUrl): String? {
+        val base = baseUrl ?: return null
         val encodedPath = URLEncoder.encode(path, "UTF-8")
         return "$base/stream?path=$encodedPath"
     }

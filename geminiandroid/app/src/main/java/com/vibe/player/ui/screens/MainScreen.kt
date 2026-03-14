@@ -61,6 +61,8 @@ fun MainScreen() {
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
     val updateInProgress = remember { mutableStateOf(false) }
     val updateStatus = remember { mutableStateOf<String?>(null) }
+    var loadRequestId by remember { mutableIntStateOf(0) }
+    var loadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -95,9 +97,14 @@ fun MainScreen() {
         isLoading = true
         errorMessage = null
         shouldRequestContentFocus = true
-        coroutineScope.launch {
-            items = ApiClient.fetchFolder(path)
-            errorMessage = ApiClient.lastError
+        loadRequestId += 1
+        val requestId = loadRequestId
+        loadJob?.cancel()
+        loadJob = coroutineScope.launch {
+            val result = ApiClient.fetchFolder(path)
+            if (requestId != loadRequestId) return@launch
+            items = result.items
+            errorMessage = result.error
             isLoading = false
         }
     }
