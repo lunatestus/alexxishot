@@ -301,7 +301,6 @@ fun PlayerScreen(
                     isFocusableInTouchMode = false
                     descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
                     subtitleView?.apply {
-                        typeface = subtitleTypeface
                         setStyle(
                             CaptionStyleCompat(
                                 AndroidColor.WHITE,
