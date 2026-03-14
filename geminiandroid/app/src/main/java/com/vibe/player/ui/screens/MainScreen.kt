@@ -5,9 +5,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -16,11 +13,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ElectricBolt
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -127,59 +120,6 @@ fun MainScreen() {
                 }
                 .padding(top = 24.dp, start = 24.dp, bottom = 16.dp, end = 24.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "MovieApp", color = TextColor, fontSize = 16.sp, fontWeight = FontWeight.Normal, fontFamily = DmSans)
-                    Spacer(modifier = Modifier.width(14.dp))
-                    if (currentPath != "/") {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(CardBg)
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = "/ ${currentPath.removePrefix("/")}",
-                                color = BreadcrumbColor,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal,
-                                fontFamily = DmSans
-                            )
-                        }
-                    }
-                }
-
-                var isToggleFocused by remember { mutableStateOf(false) }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    UpdateStatusPill(updateStatus = updateStatus, updateInProgress = updateInProgress)
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                        .background(CardBg)
-                        .border(width = if (isToggleFocused) 2.dp else 1.dp, color = if (isToggleFocused) AccentColor else ViewToggleBorder, shape = RoundedCornerShape(10.dp))
-                        .focusProperties {
-                            down = if (items.isNotEmpty()) firstItemFocusRequester else FocusRequester.Default
-                            left = FocusRequester.Default
-                        }
-                        .onFocusChanged { isToggleFocused = it.isFocused }
-                        .focusable()
-                        .clickable { 
-                            isListView = !isListView
-                            shouldRequestContentFocus = true
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(imageVector = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList, contentDescription = "Toggle View", tint = TextColor, modifier = Modifier.size(16.dp))
-                }
-            }
-            }
-
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
@@ -247,6 +187,13 @@ fun MainScreen() {
         Sidebar(
             isExpanded = isSidebarFocused,
             focusRequester = sidebarFocusRequester,
+            isListView = isListView,
+            onToggleView = {
+                isListView = !isListView
+                shouldRequestContentFocus = true
+            },
+            updateStatus = updateStatus,
+            updateInProgress = updateInProgress,
             onFocusChange = { focused ->
                 if (isSidebarFocused != focused) {
                     isSidebarFocused = focused
@@ -300,40 +247,6 @@ fun MainScreen() {
                     playingItem = null
                     shouldRequestContentFocus = true
                 }
-            )
-        }
-    }
-}
-
-@Composable
-private fun UpdateStatusPill(
-    updateStatus: State<String?>,
-    updateInProgress: State<Boolean>
-) {
-    val statusText = updateStatus.value
-    if (statusText != null) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .padding(end = 12.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(CardBg)
-                .border(1.dp, ViewToggleBorder, RoundedCornerShape(10.dp))
-                .padding(horizontal = 10.dp, vertical = 6.dp)
-        ) {
-            if (updateInProgress.value) {
-                CircularProgressIndicator(
-                    color = TextColor,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
-            Text(
-                text = statusText,
-                color = BreadcrumbColor,
-                fontSize = 12.sp,
-                fontFamily = DmSans
             )
         }
     }
