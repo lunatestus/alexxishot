@@ -3,16 +3,11 @@ package com.vibe.player.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -25,18 +20,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -44,19 +35,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.zIndex
-import android.view.KeyEvent
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.components.MediaCard
 import com.vibe.player.ui.components.Sidebar
 import com.vibe.player.ui.theme.*
 import com.vibe.player.util.AppUpdater
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -65,7 +51,6 @@ fun MainScreen() {
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
-    var isListView by remember { mutableStateOf(true) }
     var activeItem by remember { mutableStateOf<FileItem?>(null) }
     var isPlayerVisible by remember { mutableStateOf(false) }
     var isSidebarFocused by remember { mutableStateOf(false) }
@@ -79,12 +64,11 @@ fun MainScreen() {
     var loadJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
 
     val listState = rememberLazyListState()
-    val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
-    val gridFirstItemFocusRequester = remember { FocusRequester() }
+    val listFirstItemFocusRequester = remember { FocusRequester() }
 
     fun loadPath(path: String) {
         currentPath = path
@@ -110,12 +94,12 @@ fun MainScreen() {
 
     LaunchedEffect(isLoading, shouldRequestContentFocus, items.size) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
-            // Wait slightly for the lazy list/grid to layout the first item
+            // Wait slightly for the lazy list to layout the first item
             // before attempting to request focus on its requester.
             for (i in 1..5) {
                 delay(100)
                 try {
-                    gridFirstItemFocusRequester.requestFocus()
+                    listFirstItemFocusRequester.requestFocus()
                     shouldRequestContentFocus = false
                     break
                 } catch (e: Exception) {
@@ -134,11 +118,6 @@ fun MainScreen() {
             focusedItemPath = null
         }
     }
-
-    LaunchedEffect(isListView) {
-        // no-op
-    }
-
 
     BackHandler(enabled = history.isNotEmpty() || isPlayerVisible) {
         if (isPlayerVisible) {
@@ -207,7 +186,7 @@ fun MainScreen() {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = DmSans)
                     }
-                } else if (isListView) {
+                } else {
                     LazyColumn(
                         state = listState,
                         verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -217,9 +196,9 @@ fun MainScreen() {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             val itemKey = item.path
                             val focusRequester = remember(itemKey) { FocusRequester() }
+                            val activeFocusRequester = if (index == 0) listFirstItemFocusRequester else focusRequester
                             val cardModifier = Modifier
-                                .then(if (index == 0) Modifier.focusRequester(gridFirstItemFocusRequester) else Modifier)
-                                .focusRequester(focusRequester)
+                                .focusRequester(activeFocusRequester)
                                 .onFocusChanged {
                                     if (it.isFocused) {
                                         // No longer tracking focusedItemKey to avoid whole-screen recompositions
@@ -228,39 +207,9 @@ fun MainScreen() {
                                 }
                             MediaCard(
                                 item = item,
-                                index = index,
-                                isListView = true,
                                 modifier = cardModifier,
                                 onClick = {
-                                    focusRequester?.requestFocus()
-                                    if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
-                                    else {
-                                        activeItem = item
-                                        isPlayerVisible = true
-                                    }
-                                }
-                            )
-                        }
-                    }
-                } else {
-                    LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
-                        itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                            val itemKey = item.path
-                            val focusRequester = remember(itemKey) { FocusRequester() }
-                            val cardModifier = Modifier
-                                .then(if (index == 0) Modifier.focusRequester(gridFirstItemFocusRequester) else Modifier)
-                                .focusRequester(focusRequester)
-                                .onFocusChanged {
-                                    if (it.isFocused) {
-                                        focusedItemPath = itemKey
-                                    }
-                                }
-                            MediaCard(
-                                item = item,
-                                index = index,
-                                isListView = false,
-                                modifier = cardModifier,
-                                onClick = {
+                                    activeFocusRequester.requestFocus()
                                     if (item.type == "folder") { history = history + currentPath; loadPath(item.path) }
                                     else {
                                         activeItem = item
@@ -278,11 +227,6 @@ fun MainScreen() {
         Sidebar(
             isExpanded = isSidebarFocused,
             focusRequester = sidebarFocusRequester,
-            isListView = isListView,
-            onToggleView = {
-                isListView = !isListView
-                shouldRequestContentFocus = true
-            },
             updateStatus = updateStatus,
             updateInProgress = updateInProgress,
             onFocusChange = { focused ->

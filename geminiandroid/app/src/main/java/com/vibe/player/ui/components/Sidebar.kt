@@ -36,8 +36,6 @@ data class NavItem(val label: String, val id: String, val icon: ImageVector)
 fun Sidebar(
     isExpanded: Boolean,
     focusRequester: FocusRequester,
-    isListView: Boolean,
-    onToggleView: () -> Unit,
     updateStatus: State<String?>,
     updateInProgress: State<Boolean>,
     onFocusChange: (Boolean) -> Unit,
@@ -72,22 +70,15 @@ fun Sidebar(
             .padding(top = 24.dp)
     ) {
         Column {
-            val hasToggle = true
             navItems.forEachIndexed { index, item ->
                 SidebarItem(
                     item = item,
                     isExpanded = isExpanded,
                     isFirst = index == 0,
-                    isLast = index == navItems.lastIndex && !hasToggle,
+                    isLast = index == navItems.lastIndex,
                     onNavClick = onNavClick
                 )
             }
-            SidebarToggleItem(
-                isExpanded = isExpanded,
-                isListView = isListView,
-                onToggleView = onToggleView,
-                isLast = true
-            )
             if (isExpanded) {
                 UpdateStatusPill(updateStatus = updateStatus, updateInProgress = updateInProgress)
             }
@@ -153,74 +144,6 @@ private fun SidebarItem(
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = item.label,
-                color = contentTint,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Normal,
-                maxLines = 1,
-                fontFamily = DmSans
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalComposeUiApi::class)
-@Composable
-private fun SidebarToggleItem(
-    isExpanded: Boolean,
-    isListView: Boolean,
-    onToggleView: () -> Unit,
-    isLast: Boolean
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    val resolvedPadding = if (isExpanded) 16.dp else 12.dp
-    val label = if (isListView) "Grid View" else "List View"
-    val icon = if (isListView) PlayerIcons.LayoutGrid else PlayerIcons.LayoutList
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .focusProperties {
-                if (isLast) down = FocusRequester.Cancel
-                right = FocusRequester.Default
-            }
-            .onFocusChanged {
-                if (isFocused != it.isFocused) {
-                    isFocused = it.isFocused
-                }
-            }
-            .focusable()
-            .onKeyEvent { keyEvent ->
-                if (keyEvent.nativeKeyEvent.action == android.view.KeyEvent.ACTION_DOWN) {
-                    when (keyEvent.nativeKeyEvent.keyCode) {
-                        android.view.KeyEvent.KEYCODE_DPAD_CENTER,
-                        android.view.KeyEvent.KEYCODE_ENTER,
-                        android.view.KeyEvent.KEYCODE_NUMPAD_ENTER -> {
-                            onToggleView()
-                            true
-                        }
-                        else -> false
-                    }
-                } else {
-                    false
-                }
-            }
-            .clickable { onToggleView() }
-            .background(if (isFocused) AccentColor else Color.Transparent)
-            .padding(horizontal = resolvedPadding, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = if (isExpanded) Arrangement.Start else Arrangement.Center
-    ) {
-        val contentTint = if (isFocused) Color.Black else TextColor
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = contentTint,
-            modifier = Modifier.size(20.dp)
-        )
-        if (isExpanded) {
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = label,
                 color = contentTint,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,
