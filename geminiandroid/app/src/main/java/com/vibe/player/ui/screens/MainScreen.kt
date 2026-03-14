@@ -16,8 +16,6 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -254,16 +252,11 @@ fun MainScreen() {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             val itemKey = item.path
                             val focusRequester = listFocusRequesters[itemKey]
-                            val bringIntoViewRequester = remember { BringIntoViewRequester() }
                             val cardModifier = Modifier
                                 .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-                                .bringIntoViewRequester(bringIntoViewRequester)
                                 .onFocusChanged {
                                     if (it.isFocused) {
                                         focusedItemKey = itemKey
-                                        coroutineScope.launch {
-                                            bringIntoViewRequester.bringIntoView()
-                                        }
                                     }
                                 }
                             MediaCard(
