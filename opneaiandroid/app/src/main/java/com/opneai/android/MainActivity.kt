@@ -403,7 +403,7 @@ private fun FileRow(
                 interactionSource = remember { MutableInteractionSource() }
             )
             .graphicsLayer { scaleX = scale; scaleY = scale },
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(8.dp),
         color = background,
         border = BorderStroke(1.dp, borderColor),
         tonalElevation = 2.dp,
