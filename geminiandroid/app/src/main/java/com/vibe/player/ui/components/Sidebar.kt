@@ -53,7 +53,7 @@ fun Sidebar(
         )
     }
 
-    val expandedWidth = 180.dp
+    val expandedWidth = 200.dp
     val collapsedWidth = 56.dp
     val sidebarWidth by animateDpAsState(
         targetValue = if (isExpanded) expandedWidth else collapsedWidth,
@@ -88,7 +88,9 @@ fun Sidebar(
                 onToggleView = onToggleView,
                 isLast = true
             )
-            UpdateStatusPill(updateStatus = updateStatus, updateInProgress = updateInProgress)
+            if (isExpanded) {
+                UpdateStatusPill(updateStatus = updateStatus, updateInProgress = updateInProgress)
+            }
         }
     }
 }

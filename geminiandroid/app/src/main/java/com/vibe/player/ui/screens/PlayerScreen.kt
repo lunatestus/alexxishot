@@ -157,7 +157,14 @@ fun PlayerScreen(
                 if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                     when (keyEvent.nativeKeyEvent.keyCode) {
                         KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
-                            onClose()
+                            if (showControls || isMenuOpen) {
+                                showControls = false
+                                showCaptionMenu = false
+                                showAudioMenu = false
+                                screenFocusRequester.requestFocus()
+                            } else {
+                                onClose()
+                            }
                             true
                         }
                         KeyEvent.KEYCODE_DPAD_CENTER,
@@ -738,7 +745,6 @@ private fun TrackSelectionMenu(
                 .widthIn(min = 260.dp, max = 360.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .background(Color.Black)
-                .border(1.dp, ViewToggleBorder, RoundedCornerShape(14.dp))
                 .padding(16.dp)
         ) {
             Text(
@@ -793,13 +799,13 @@ private fun TrackSelectionMenu(
                         fontFamily = DmSans,
                         maxLines = 1
                     )
-                    if (option.isSelected) {
+                    if (option.isSelected && isFocused) {
                         Spacer(modifier = Modifier.weight(1f))
-                        Text(
-                            text = "•",
-                            color = textColor,
-                            fontSize = 18.sp,
-                            fontFamily = DmSans
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_circle_check),
+                            contentDescription = null,
+                            tint = textColor,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
