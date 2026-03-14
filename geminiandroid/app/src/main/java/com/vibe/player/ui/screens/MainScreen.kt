@@ -65,8 +65,8 @@ fun MainScreen() {
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
-    var updateInProgress by remember { mutableStateOf(false) }
-    var updateStatus by remember { mutableStateOf<String?>(null) }
+    val updateInProgress = remember { mutableStateOf(false) }
+    val updateStatus = remember { mutableStateOf<String?>(null) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -156,32 +156,7 @@ fun MainScreen() {
 
                 var isToggleFocused by remember { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (updateStatus != null) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .padding(end = 12.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(CardBg)
-                                .border(1.dp, ViewToggleBorder, RoundedCornerShape(10.dp))
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            if (updateInProgress) {
-                                CircularProgressIndicator(
-                                    color = TextColor,
-                                    strokeWidth = 2.dp,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                            }
-                            Text(
-                                text = updateStatus ?: "",
-                                color = BreadcrumbColor,
-                                fontSize = 12.sp,
-                                fontFamily = DmSans
-                            )
-                        }
-                    }
+                    UpdateStatusPill(updateStatus = updateStatus, updateInProgress = updateInProgress)
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -237,7 +212,7 @@ fun MainScreen() {
                 }
             } else if (isListView) {
                 LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
-                    itemsIndexed(items) { index, item ->
+                    itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                         MediaCard(
                             item = item, 
                             index = index, 
@@ -252,7 +227,7 @@ fun MainScreen() {
                 }
             } else {
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
-                    itemsIndexed(items) { index, item ->
+                    itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                         MediaCard(
                             item = item, 
                             index = index, 
@@ -282,11 +257,11 @@ fun MainScreen() {
                 if (id == "home" || id == "movies") {
                     loadPath("/media")
                 } else if (id == "update") {
-                    if (updateInProgress) {
-                        updateStatus = "Update already in progress"
+                    if (updateInProgress.value) {
+                        updateStatus.value = "Update already in progress"
                     } else {
-                        updateInProgress = true
-                        updateStatus = "Preparing update…"
+                        updateInProgress.value = true
+                        updateStatus.value = "Preparing update…"
                         coroutineScope.launch {
                             val cacheBustedUrl =
                                 "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk?t=${System.currentTimeMillis()}"
@@ -296,19 +271,19 @@ fun MainScreen() {
                                 onProgress = { bytesRead, totalBytes ->
                                     val downloadedMb = bytesRead / (1024f * 1024f)
                                     val totalMb = if (totalBytes > 0) totalBytes / (1024f * 1024f) else null
-                                    updateStatus = if (totalMb != null) {
+                                    updateStatus.value = if (totalMb != null) {
                                         "Downloading %.1f / %.1f MB".format(downloadedMb, totalMb)
                                     } else {
                                         "Downloading %.1f MB".format(downloadedMb)
                                     }
                                 },
                                 onStatus = { status ->
-                                    updateStatus = status
+                                    updateStatus.value = status
                                 }
                             )
-                            updateInProgress = false
+                            updateInProgress.value = false
                             if (result.isFailure) {
-                                updateStatus = "Update failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
+                                updateStatus.value = "Update failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
                             }
                         }
                     }
@@ -323,6 +298,40 @@ fun MainScreen() {
                     playingItem = null
                     shouldRequestContentFocus = true
                 }
+            )
+        }
+    }
+}
+
+@Composable
+private fun UpdateStatusPill(
+    updateStatus: State<String?>,
+    updateInProgress: State<Boolean>
+) {
+    val statusText = updateStatus.value
+    if (statusText != null) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(end = 12.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(CardBg)
+                .border(1.dp, ViewToggleBorder, RoundedCornerShape(10.dp))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            if (updateInProgress.value) {
+                CircularProgressIndicator(
+                    color = TextColor,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = statusText,
+                color = BreadcrumbColor,
+                fontSize = 12.sp,
+                fontFamily = DmSans
             )
         }
     }

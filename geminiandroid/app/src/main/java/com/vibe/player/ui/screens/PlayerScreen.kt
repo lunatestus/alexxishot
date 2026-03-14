@@ -345,8 +345,12 @@ fun PlayerSeekBar(
     var lastSeekTime by remember { mutableLongStateOf(0L) }
     var isProgressFocused by remember { mutableStateOf(false) }
 
-    LaunchedEffect(exoPlayer) {
+    LaunchedEffect(exoPlayer, showControls) {
         while (true) {
+            if (!showControls) {
+                delay(500)
+                continue
+            }
             // Don't update from player if user is actively seeking (debounce)
             if (System.currentTimeMillis() - lastSeekTime > 500) {
                 currentPosition = exoPlayer.currentPosition
