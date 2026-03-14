@@ -78,7 +78,13 @@ fun PlayerScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     
-    val trackSelector = remember { DefaultTrackSelector(context) }
+    val trackSelector = remember {
+        DefaultTrackSelector(context).apply {
+            parameters = buildUponParameters()
+                .setTunnelingEnabled(false)
+                .build()
+        }
+    }
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(20_000, false)
