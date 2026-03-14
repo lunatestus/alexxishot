@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -208,13 +209,22 @@ fun MainScreen() {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(48.dp))
                 }
-            }
- else if (errorMessage != null && errorMessage != "Empty folder") {
+            } else if (errorMessage != null && errorMessage != "Empty folder") {
                 Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    Text("Error: $errorMessage", color = Color.Red, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(20.dp))
+                    Text(
+                        "Error: $errorMessage",
+                        color = TextColor,
+                        fontSize = 16.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(20.dp)
+                    )
                     Button(
                         onClick = { loadPath(currentPath) },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentColor)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CardBg,
+                            contentColor = TextColor
+                        ),
+                        border = BorderStroke(1.dp, ViewToggleBorder)
                     ) {
                         Icon(Icons.Default.Refresh, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
