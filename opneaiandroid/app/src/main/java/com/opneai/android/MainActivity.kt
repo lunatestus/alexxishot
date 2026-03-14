@@ -101,7 +101,9 @@ private fun FileBrowserScreen() {
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                modifier = Modifier.fillMaxHeight(),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(220.dp),
                 drawerContainerColor = colorScheme.surface,
                 drawerContentColor = colorScheme.onSurface
             ) {
