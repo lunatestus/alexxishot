@@ -417,7 +417,7 @@ fun PlayerScreen(
         ) {
             Column(modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth()) {
                 Text(
-                    text = item.name,
+                    text = truncateTitle(item.name, 45),
                     color = TextColor,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
@@ -1160,4 +1160,11 @@ fun formatTime(milliseconds: Long): String {
 fun formatTimeOrUnknown(milliseconds: Long): String {
     if (milliseconds <= 0L) return "--:--"
     return formatTime(milliseconds)
+}
+
+private fun truncateTitle(title: String, maxChars: Int): String {
+    if (maxChars <= 0) return ""
+    if (title.length <= maxChars) return title
+    if (maxChars <= 3) return title.take(maxChars)
+    return title.take(maxChars - 3) + "..."
 }
