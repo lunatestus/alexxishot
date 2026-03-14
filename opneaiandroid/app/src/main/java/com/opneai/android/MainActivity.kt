@@ -192,7 +192,7 @@ private fun FileBrowserScreen() {
                             contentColor = colorScheme.onSurface
                         )
                     ) {
-                        Text("About")
+                        Text("Upgrade")
                     }
                 }
             }
