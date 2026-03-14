@@ -54,7 +54,9 @@ import com.vibe.player.R
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.theme.*
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -439,6 +441,16 @@ fun PlayerSeekBar(
     var duration by remember { mutableLongStateOf(0L) }
     var lastSeekTime by remember { mutableLongStateOf(0L) }
     var isProgressFocused by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var seekJob by remember { mutableStateOf<Job?>(null) }
+    var seekDirection by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            seekJob?.cancel()
+            seekJob = null
+        }
+    }
 
     LaunchedEffect(exoPlayer, showControls) {
         while (true) {
@@ -482,16 +494,24 @@ fun PlayerSeekBar(
                 val isRight = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
                 
                 if (isLeft || isRight) {
-                    val offset = if (isLeft) -15000L else 15000L
-                    
                     if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
                         lastSeekTime = System.currentTimeMillis()
-                        // Rapidly update local UI state without blocking main thread
-                        val next = (currentPosition + offset).coerceAtLeast(0L)
-                        currentPosition = if (duration > 0) next.coerceAtMost(duration) else next
+                        seekDirection = if (isLeft) -1 else 1
+                        if (seekJob == null) {
+                            seekJob = scope.launch {
+                                while (true) {
+                                    val step = 750L * seekDirection
+                                    val next = (currentPosition + step).coerceAtLeast(0L)
+                                    currentPosition = if (duration > 0) next.coerceAtMost(duration) else next
+                                    delay(50)
+                                }
+                            }
+                        }
                         true
                     } else if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_UP) {
                         lastSeekTime = System.currentTimeMillis()
+                        seekJob?.cancel()
+                        seekJob = null
                         // Commit the final position to ExoPlayer once user releases the button
                         exoPlayer.seekTo(currentPosition)
                         true
@@ -512,7 +532,9 @@ fun PlayerSeekBar(
                 formatTime(currentPosition),
                 color = Color(0xCCFFFFFF),
                 fontSize = 12.sp,
-                fontFamily = DmSans
+                fontFamily = DmSans,
+                maxLines = 1,
+                modifier = Modifier.width(60.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             BoxWithConstraints(
@@ -551,7 +573,10 @@ fun PlayerSeekBar(
                 formatTimeOrUnknown(duration),
                 color = Color(0xCCFFFFFF),
                 fontSize = 12.sp,
-                fontFamily = DmSans
+                fontFamily = DmSans,
+                maxLines = 1,
+                textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.width(60.dp)
             )
         }
     }
