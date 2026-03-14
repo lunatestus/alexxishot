@@ -75,8 +75,6 @@ fun MainScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
     var focusedItemKey by remember { mutableStateOf<String?>(null) }
-    var listNavJob by remember { mutableStateOf<Job?>(null) }
-    var listNavDirection by remember { mutableIntStateOf(0) }
     val updateInProgress = remember { mutableStateOf(false) }
     val updateStatus = remember { mutableStateOf<String?>(null) }
     var loadRequestId by remember { mutableIntStateOf(0) }
@@ -128,16 +126,6 @@ fun MainScreen() {
         }
     }
 
-    suspend fun moveListSelection(step: Int) {
-        if (items.isEmpty()) return
-        val currentIndex = items.indexOfFirst { it.path == focusedItemKey }.coerceAtLeast(0)
-        val nextIndex = (currentIndex + step).coerceIn(0, items.lastIndex)
-        if (nextIndex == currentIndex) return
-        val nextKey = items[nextIndex].path
-        focusedItemKey = nextKey
-        requestListItemFocusByKey(nextKey)
-    }
-
     fun loadPath(path: String) {
         currentPath = path
         isLoading = true
@@ -185,11 +173,7 @@ fun MainScreen() {
     }
 
     LaunchedEffect(isListView) {
-        if (!isListView) {
-            listNavJob?.cancel()
-            listNavJob = null
-            listNavDirection = 0
-        }
+        // no-op
     }
 
 
@@ -280,42 +264,6 @@ fun MainScreen() {
                                         coroutineScope.launch {
                                             bringIntoViewRequester.bringIntoView()
                                         }
-                                    } else if (listNavJob?.isActive == true) {
-                                        listNavJob?.cancel()
-                                        listNavJob = null
-                                        listNavDirection = 0
-                                    }
-                                }
-                                .onKeyEvent { keyEvent ->
-                                    val isDown = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-                                    val isUp = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_UP
-                                    if (!isDown && !isUp) return@onKeyEvent false
-                                    when (keyEvent.nativeKeyEvent.action) {
-                                        KeyEvent.ACTION_DOWN -> {
-                                            val direction = if (isDown) 1 else -1
-                                            if (listNavJob?.isActive == true && listNavDirection != direction) {
-                                                listNavJob?.cancel()
-                                                listNavJob = null
-                                            }
-                                            if (listNavJob == null) {
-                                                listNavDirection = direction
-                                                listNavJob = coroutineScope.launch {
-                                                    moveListSelection(direction)
-                                                    while (true) {
-                                                        delay(120)
-                                                        moveListSelection(direction)
-                                                    }
-                                                }
-                                            }
-                                            true
-                                        }
-                                        KeyEvent.ACTION_UP -> {
-                                            listNavJob?.cancel()
-                                            listNavJob = null
-                                            listNavDirection = 0
-                                            true
-                                        }
-                                        else -> false
                                     }
                                 }
                             MediaCard(
@@ -426,29 +374,14 @@ fun MainScreen() {
             }
         )
 
-        val playerAlpha by animateFloatAsState(
-            targetValue = if (isPlayerVisible) 1f else 0f,
-            animationSpec = tween(220)
-        )
-
-        LaunchedEffect(playerAlpha, isPlayerVisible, activeItem) {
-            if (!isPlayerVisible && activeItem != null && playerAlpha == 0f) {
-                activeItem = null
-            }
-        }
-
-        if (activeItem != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-                    .zIndex(2f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = playerAlpha }
-                ) {
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isPlayerVisible,
+            enter = androidx.compose.animation.fadeIn(animationSpec = tween(300)),
+            exit = androidx.compose.animation.fadeOut(animationSpec = tween(300)),
+            modifier = Modifier.fillMaxSize().zIndex(2f)
+        ) {
+            if (activeItem != null) {
+                Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
                     PlayerScreen(
                         item = activeItem!!,
                         onClose = {
