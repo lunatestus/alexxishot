@@ -64,8 +64,15 @@ fun MainScreen() {
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
     val coroutineScope = rememberCoroutineScope()
-    val gridSpanCount by remember {
-        derivedStateOf { gridState.layoutInfo.spanCount }
+    val bottomRowIndices by remember {
+        derivedStateOf {
+            val visibleItems = gridState.layoutInfo.visibleItemsInfo
+            val maxOffsetY = visibleItems.maxOfOrNull { it.offset.y } ?: 0
+            visibleItems.asSequence()
+                .filter { it.offset.y == maxOffsetY }
+                .map { it.index }
+                .toSet()
+        }
     }
 
     // Focus Requesters
@@ -180,7 +187,7 @@ fun MainScreen() {
             } else {
                 LazyVerticalGrid(state = gridState, columns = GridCells.Adaptive(minSize = 180.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
                     itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
-                        val isLastRow = gridSpanCount > 0 && index >= (items.size - gridSpanCount).coerceAtLeast(0)
+                        val isLastRow = bottomRowIndices.contains(index)
                         val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
                             .then(
                                 if (isLastRow) {
