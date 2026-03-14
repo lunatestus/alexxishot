@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.components.MediaCard
@@ -66,6 +65,7 @@ fun MainScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var shouldRequestContentFocus by remember { mutableStateOf(true) }
     var updateInProgress by remember { mutableStateOf(false) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
 
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
@@ -155,19 +155,26 @@ fun MainScreen() {
 
                 var isToggleFocused by remember { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (updateInProgress) {
+                    if (updateStatus != null) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 12.dp)
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(CardBg)
+                                .border(1.dp, ViewToggleBorder, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
-                            CircularProgressIndicator(
-                                color = TextColor,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            if (updateInProgress) {
+                                CircularProgressIndicator(
+                                    color = TextColor,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
                             Text(
-                                text = "Updating…",
+                                text = updateStatus ?: "",
                                 color = BreadcrumbColor,
                                 fontSize = 12.sp,
                                 fontFamily = DmSans
@@ -266,20 +273,32 @@ fun MainScreen() {
                     loadPath("/media")
                 } else if (id == "update") {
                     if (updateInProgress) {
-                        Toast.makeText(context, "Update already downloading", Toast.LENGTH_SHORT).show()
+                        updateStatus = "Update already in progress"
                     } else {
                         updateInProgress = true
-                        Toast.makeText(context, "Downloading update…", Toast.LENGTH_SHORT).show()
+                        updateStatus = "Preparing update…"
                         coroutineScope.launch {
+                            val cacheBustedUrl =
+                                "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk?t=${System.currentTimeMillis()}"
                             val result = AppUpdater.downloadAndInstall(
                                 context,
-                                "https://github.com/lunatestus/alexxishot/releases/download/latest-dev/app-debug.apk"
-                            ) { progress ->
-                                // Optional progress handling
-                            }
+                                cacheBustedUrl,
+                                onProgress = { bytesRead, totalBytes ->
+                                    val downloadedMb = bytesRead / (1024f * 1024f)
+                                    val totalMb = if (totalBytes > 0) totalBytes / (1024f * 1024f) else null
+                                    updateStatus = if (totalMb != null) {
+                                        "Downloading %.1f / %.1f MB".format(downloadedMb, totalMb)
+                                    } else {
+                                        "Downloading %.1f MB".format(downloadedMb)
+                                    }
+                                },
+                                onStatus = { status ->
+                                    updateStatus = status
+                                }
+                            )
                             updateInProgress = false
                             if (result.isFailure) {
-                                Toast.makeText(context, "Update failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                                updateStatus = "Update failed: ${result.exceptionOrNull()?.message ?: "Unknown error"}"
                             }
                         }
                     }

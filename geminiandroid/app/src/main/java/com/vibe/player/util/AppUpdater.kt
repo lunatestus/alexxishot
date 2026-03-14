@@ -14,7 +14,12 @@ import java.net.URL
 
 object AppUpdater {
 
-    suspend fun downloadAndInstall(context: Context, url: String, onProgress: (Float) -> Unit): Result<Unit> {
+    suspend fun downloadAndInstall(
+        context: Context,
+        url: String,
+        onProgress: (Long, Long) -> Unit,
+        onStatus: (String) -> Unit
+    ): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
                 val updateDir = File(context.externalCacheDir, "updates")
@@ -25,6 +30,7 @@ object AppUpdater {
                 
                 val apkFile = File(updateDir, "vibe-update.apk")
                 
+                onStatus("Downloading update…")
                 val connection = URL(url).openConnection()
                 connection.connect()
                 
@@ -38,9 +44,7 @@ object AppUpdater {
                 
                 while (input.read(data).also { count = it } != -1) {
                     total += count.toLong()
-                    if (fileLength > 0) {
-                        onProgress(total.toFloat() / fileLength)
-                    }
+                    onProgress(total, fileLength.toLong())
                     output.write(data, 0, count)
                 }
                 
@@ -48,6 +52,7 @@ object AppUpdater {
                 output.close()
                 input.close()
                 
+                onStatus("Installing update…")
                 installApk(context, apkFile)
                 Result.success(Unit)
             } catch (e: Exception) {
