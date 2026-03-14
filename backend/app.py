@@ -1,21 +1,15 @@
-import asyncio
-import fcntl
-import json
 import mimetypes
 import os
-import pty
 import re
-import select
-import signal
-import struct
 import subprocess
-import termios
 import time
 from pathlib import Path
 from typing import Iterator, Tuple
 from urllib.parse import quote
 
 import modal
+
+from terminal import add_terminal_routes
 
 APP_NAME = "vibe-backend"
 VOLUME_NAME = "vibe-media"
@@ -47,6 +41,7 @@ image = (
         "curl -fsSL https://deb.nodesource.com/setup_22.x | bash -",
         "apt-get install -y nodejs",
         "npm install -g @google/gemini-cli",
+        "npm install -g opencode-ai",
     )
     .run_commands(
         "curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared",
@@ -55,6 +50,11 @@ image = (
     .add_local_file(
         os.path.join(os.path.dirname(__file__), "terminal.html"),
         "/app/terminal.html",
+        copy=True,
+    )
+    .add_local_file(
+        os.path.join(os.path.dirname(__file__), "terminal.py"),
+        "/root/terminal.py",
         copy=True,
     )
 )
@@ -123,8 +123,8 @@ def _no_cache_headers() -> dict:
 
 
 def create_api_app():
-    from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
-    from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.responses import JSONResponse, StreamingResponse
 
     api_app = FastAPI()
 
@@ -217,92 +217,7 @@ def create_api_app():
         base = str(request.base_url).rstrip("/")
         return {"url": f"{base}/stream?path={quote(path)}"}
 
-    @api_app.get("/terminal")
-    def serve_terminal():
-        for p in [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "terminal.html"),
-            "/app/terminal.html",
-        ]:
-            if os.path.exists(p):
-                with open(p, "r") as f:
-                    return HTMLResponse(content=f.read())
-        raise HTTPException(status_code=404, detail="terminal.html not found")
-
-    @api_app.websocket("/ws/terminal")
-    async def terminal_ws(websocket: WebSocket):
-        await websocket.accept()
-
-        pid, fd = pty.fork()
-        if pid == 0:
-            # Child process
-            os.chdir(MOUNT_PATH if os.path.exists(MOUNT_PATH) else "/")
-            env = os.environ.copy()
-            env["TERM"] = "xterm-256color"
-            env["COLORTERM"] = "truecolor"
-            env["LANG"] = os.environ.get("LANG", "en_US.UTF-8")
-            os.execvpe("/bin/bash", ["/bin/bash"], env)
-
-        # Parent process
-        loop = asyncio.get_event_loop()
-
-        async def read_pty():
-            try:
-                while True:
-                    await asyncio.sleep(0.01)
-                    if select.select([fd], [], [], 0)[0]:
-                        try:
-                            data = os.read(fd, 4096)
-                            if data:
-                                await websocket.send_json(
-                                    {
-                                        "type": "output",
-                                        "data": data.decode("utf-8", errors="replace"),
-                                    }
-                                )
-                            else:
-                                break
-                        except OSError:
-                            break
-            except Exception:
-                pass
-
-        read_task = asyncio.create_task(read_pty())
-
-        try:
-            while True:
-                raw = await websocket.receive_text()
-                try:
-                    msg = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-
-                msg_type = msg.get("type")
-                if msg_type == "input":
-                    data = msg.get("data", "")
-                    if data:
-                        os.write(fd, data.encode("utf-8"))
-                elif msg_type == "resize":
-                    cols = max(1, min(500, int(msg.get("cols", 80))))
-                    rows = max(1, min(200, int(msg.get("rows", 24))))
-                    winsize = struct.pack("HHHH", rows, cols, 0, 0)
-                    fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
-                elif msg_type == "ping":
-                    await websocket.send_json({"type": "pong"})
-        except WebSocketDisconnect:
-            pass
-        except Exception:
-            pass
-        finally:
-            read_task.cancel()
-            try:
-                os.kill(pid, signal.SIGTERM)
-                os.waitpid(pid, 0)
-            except Exception:
-                pass
-            try:
-                os.close(fd)
-            except Exception:
-                pass
+    add_terminal_routes(api_app)
 
     return api_app
 
