@@ -1,7 +1,12 @@
-name: Gemini Android Build
+name: OpenAI Android Build
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ "gemini" ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ "gemini" ]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -11,12 +16,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 1
-    
+
     - name: set up JDK 17
       uses: actions/setup-java@v4
       with:
@@ -30,28 +35,28 @@ jobs:
 
     - name: Build with Gradle
       run: |
-        cd geminiandroid
+        cd opneaiandroid
         gradle :app:assembleDebug
 
     - name: Create Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/gemini'
       uses: softprops/action-gh-release@v2
       with:
-        files: geminiandroid/app/build/outputs/apk/debug/app-debug.apk
-        name: "Vibe Player (Latest Development Build)"
+        files: opneaiandroid/app/build/outputs/apk/debug/app-debug.apk
+        name: "OpenAI Android (Latest Development Build)"
         tag_name: "latest-dev"
         body: "Automated build from the latest push to the gemini branch. Generated on ${{ github.event.head_commit.timestamp }}."
         draft: false
         prerelease: false
         make_latest: true
-        overwrite_files: true # Overwrites the previous "latest-dev" asset
+        overwrite_files: true
 
     - name: Create Versioned Release
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v2
       with:
-        files: geminiandroid/app/build/outputs/apk/debug/app-debug.apk
-        name: Vibe Player Release ${{ github.ref_name }}
+        files: opneaiandroid/app/build/outputs/apk/debug/app-debug.apk
+        name: OpenAI Android Release ${{ github.ref_name }}
         tag_name: ${{ github.ref }}
         draft: false
         prerelease: false
