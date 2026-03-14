@@ -9,10 +9,12 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -40,8 +42,13 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.C
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.TrackSelectionOverrides
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.vibe.player.data.ApiClient
@@ -58,12 +65,14 @@ fun PlayerScreen(
     val context = LocalContext.current
     val streamUrl = remember(item.path) { ApiClient.getStreamUrl(item.path) }
     
+    val trackSelector = remember { DefaultTrackSelector(context) }
     val exoPlayer = remember {
         val loadControl = DefaultLoadControl.Builder()
             .setBackBuffer(60_000, true)
             .build()
         ExoPlayer.Builder(context)
             .setLoadControl(loadControl)
+            .setTrackSelector(trackSelector)
             .build()
     }
 
@@ -71,11 +80,16 @@ fun PlayerScreen(
     var showControls by remember { mutableStateOf(true) }
     var lastInteraction by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var playbackError by remember { mutableStateOf<String?>(null) }
+    var showCaptionMenu by remember { mutableStateOf(false) }
+    var showAudioMenu by remember { mutableStateOf(false) }
+    val isMenuOpen = showCaptionMenu || showAudioMenu
     
     val seekbarFocusRequester = remember { FocusRequester() }
     val playPauseFocusRequester = remember { FocusRequester() }
     val rewindFocusRequester = remember { FocusRequester() }
     val forwardFocusRequester = remember { FocusRequester() }
+    val captionFocusRequester = remember { FocusRequester() }
+    val audioFocusRequester = remember { FocusRequester() }
     val settingsFocusRequester = remember { FocusRequester() }
     val screenFocusRequester = remember { FocusRequester() }
 
@@ -115,8 +129,8 @@ fun PlayerScreen(
         screenFocusRequester.requestFocus()
     }
 
-    LaunchedEffect(lastInteraction, showControls) {
-        if (showControls) {
+    LaunchedEffect(lastInteraction, showControls, isMenuOpen) {
+        if (showControls && !isMenuOpen) {
             delay(3000)
             if (System.currentTimeMillis() - lastInteraction >= 3000) {
                 showControls = false
@@ -125,8 +139,8 @@ fun PlayerScreen(
         }
     }
 
-    LaunchedEffect(showControls) {
-        if (showControls) {
+    LaunchedEffect(showControls, isMenuOpen) {
+        if (showControls && !isMenuOpen) {
             playPauseFocusRequester.requestFocus() // Return focus to controls when shown
         } else {
             screenFocusRequester.requestFocus()
@@ -324,25 +338,78 @@ fun PlayerScreen(
                             focusProps = {
                                 up = seekbarFocusRequester
                                 left = rewindFocusRequester
-                                right = settingsFocusRequester
+                                right = captionFocusRequester
                             },
                             enabled = showControls
                         )
                     }
 
-                    PlayerButton(
-                        icon = PlayerIcons.Settings, 
-                        onClick = { lastInteraction = System.currentTimeMillis() },
-                        modifier = Modifier.focusRequester(settingsFocusRequester),
-                        focusProps = {
-                            up = seekbarFocusRequester
-                            left = forwardFocusRequester
-                            right = FocusRequester.Cancel
-                        },
-                        enabled = showControls
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        PlayerButton(
+                            icon = PlayerIcons.Captions,
+                            onClick = { 
+                                lastInteraction = System.currentTimeMillis()
+                                showCaptionMenu = true
+                                showAudioMenu = false
+                                showControls = true
+                            },
+                            modifier = Modifier.focusRequester(captionFocusRequester),
+                            focusProps = {
+                                up = seekbarFocusRequester
+                                left = forwardFocusRequester
+                                right = audioFocusRequester
+                            },
+                            enabled = showControls
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        PlayerButton(
+                            icon = PlayerIcons.Audio,
+                            onClick = { 
+                                lastInteraction = System.currentTimeMillis()
+                                showAudioMenu = true
+                                showCaptionMenu = false
+                                showControls = true
+                            },
+                            modifier = Modifier.focusRequester(audioFocusRequester),
+                            focusProps = {
+                                up = seekbarFocusRequester
+                                left = captionFocusRequester
+                                right = settingsFocusRequester
+                            },
+                            enabled = showControls
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        PlayerButton(
+                            icon = PlayerIcons.Settings, 
+                            onClick = { lastInteraction = System.currentTimeMillis() },
+                            modifier = Modifier.focusRequester(settingsFocusRequester),
+                            focusProps = {
+                                up = seekbarFocusRequester
+                                left = audioFocusRequester
+                                right = FocusRequester.Cancel
+                            },
+                            enabled = showControls
+                        )
+                    }
                 }
             }
+        }
+
+        if (isMenuOpen) {
+            val menuType = if (showCaptionMenu) C.TRACK_TYPE_TEXT else C.TRACK_TYPE_AUDIO
+            val title = if (showCaptionMenu) "Subtitles" else "Audio"
+            TrackSelectionMenu(
+                title = title,
+                exoPlayer = exoPlayer,
+                trackSelector = trackSelector,
+                trackType = menuType,
+                onDismiss = {
+                    showCaptionMenu = false
+                    showAudioMenu = false
+                    lastInteraction = System.currentTimeMillis()
+                    playPauseFocusRequester.requestFocus()
+                }
+            )
         }
     }
 }
@@ -532,6 +599,178 @@ fun PlayerButton(
             modifier = Modifier.size(if (isPrimary) 28.dp else 20.dp)
         )
     }
+}
+
+private data class TrackOption(
+    val label: String,
+    val group: Tracks.Group?,
+    val trackIndex: Int?,
+    val isSelected: Boolean,
+    val isOff: Boolean = false
+)
+
+@Composable
+private fun TrackSelectionMenu(
+    title: String,
+    exoPlayer: ExoPlayer,
+    trackSelector: DefaultTrackSelector,
+    trackType: Int,
+    onDismiss: () -> Unit
+) {
+    val tracks = exoPlayer.currentTracks
+    val isTypeDisabled = trackSelector.parameters.getTrackTypeDisabled(trackType)
+    val options = remember(tracks, trackType, isTypeDisabled) {
+        val built = mutableListOf<TrackOption>()
+        if (trackType == C.TRACK_TYPE_TEXT) {
+            built.add(
+                TrackOption(
+                    label = "Off",
+                    group = null,
+                    trackIndex = null,
+                    isSelected = isTypeDisabled,
+                    isOff = true
+                )
+            )
+        }
+        tracks.groups.forEach { group ->
+            if (group.type != trackType) return@forEach
+            val trackGroup = group.mediaTrackGroup
+            for (i in 0 until trackGroup.length) {
+                val format = trackGroup.getFormat(i)
+                val label = format.label ?: format.language ?: "Track ${i + 1}"
+                built.add(
+                    TrackOption(
+                        label = label,
+                        group = group,
+                        trackIndex = i,
+                        isSelected = group.isTrackSelected(i) && !isTypeDisabled
+                    )
+                )
+            }
+        }
+        built
+    }
+
+    val focusRequesters = remember(options.size) { List(options.size) { FocusRequester() } }
+
+    LaunchedEffect(options.size) {
+        if (options.isNotEmpty()) {
+            focusRequesters.first().requestFocus()
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x66000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .widthIn(min = 260.dp, max = 360.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(Color.Black)
+                .border(1.dp, ViewToggleBorder, RoundedCornerShape(14.dp))
+                .padding(16.dp)
+        ) {
+            Text(
+                text = title,
+                color = TextColor,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Normal,
+                fontFamily = DmSans
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            options.forEachIndexed { index, option ->
+                var isFocused by remember { mutableStateOf(false) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequesters[index])
+                        .onFocusChanged { isFocused = it.isFocused }
+                        .focusable()
+                        .onKeyEvent { keyEvent ->
+                            if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                                when (keyEvent.nativeKeyEvent.keyCode) {
+                                    KeyEvent.KEYCODE_DPAD_CENTER,
+                                    KeyEvent.KEYCODE_ENTER,
+                                    KeyEvent.KEYCODE_NUMPAD_ENTER -> {
+                                        applyTrackSelection(exoPlayer, trackSelector, trackType, option)
+                                        onDismiss()
+                                        true
+                                    }
+                                    KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> {
+                                        onDismiss()
+                                        true
+                                    }
+                                    else -> false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                        .clickable {
+                            applyTrackSelection(exoPlayer, trackSelector, trackType, option)
+                            onDismiss()
+                        }
+                        .background(if (isFocused) Color.White else Color.Transparent)
+                        .padding(vertical = 10.dp, horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val textColor = if (isFocused) Color.Black else Color.White
+                    Text(
+                        text = option.label,
+                        color = textColor,
+                        fontSize = 14.sp,
+                        fontFamily = DmSans,
+                        maxLines = 1
+                    )
+                    if (option.isSelected) {
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "•",
+                            color = textColor,
+                            fontSize = 18.sp,
+                            fontFamily = DmSans
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+            }
+        }
+    }
+}
+
+private fun applyTrackSelection(
+    exoPlayer: ExoPlayer,
+    trackSelector: DefaultTrackSelector,
+    trackType: Int,
+    option: TrackOption
+) {
+    val trackGroupTypes = exoPlayer.currentTracks.groups.associate {
+        it.mediaTrackGroup to it.type
+    }
+    val existing = trackSelector.parameters.trackSelectionOverrides
+    val overridesBuilder = TrackSelectionOverrides.Builder()
+    existing.overriddenTrackGroups.forEach { group ->
+        val override = existing.getOverride(group)
+        val groupType = trackGroupTypes[group]
+        if (groupType != trackType) {
+            overridesBuilder.addOverride(override)
+        }
+    }
+
+    if (!option.isOff && option.group != null && option.trackIndex != null) {
+        overridesBuilder.addOverride(
+            TrackSelectionOverride(option.group.mediaTrackGroup, listOf(option.trackIndex))
+        )
+    }
+
+    val paramsBuilder = trackSelector.parameters.buildUpon()
+        .setTrackSelectionOverrides(overridesBuilder.build())
+        .setTrackTypeDisabled(trackType, option.isOff)
+
+    trackSelector.parameters = paramsBuilder.build()
 }
 
 fun formatTime(milliseconds: Long): String {
