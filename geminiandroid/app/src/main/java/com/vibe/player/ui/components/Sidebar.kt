@@ -80,6 +80,7 @@ fun Sidebar(
     }
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun SidebarItem(
     item: NavItem,
