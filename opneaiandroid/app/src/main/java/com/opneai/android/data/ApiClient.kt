@@ -113,4 +113,10 @@ object ApiClient {
             return@withContext FetchResult(emptyList(), "API error: ${e.message}")
         }
     }
+
+    fun getStreamUrl(path: String, baseUrl: String? = cachedBaseUrl): String? {
+        val base = baseUrl ?: return null
+        val encodedPath = URLEncoder.encode(path, "UTF-8")
+        return "$base/stream?path=$encodedPath"
+    }
 }

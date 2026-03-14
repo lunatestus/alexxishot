@@ -1,8 +1,6 @@
 package com.opneai.android
 
-import android.app.Activity
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -22,12 +20,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.opneai.android.data.ApiClient
 import com.opneai.android.data.FileItem
+import com.opneai.android.ui.screens.PlayerScreen
 import com.opneai.android.ui.theme.OpenAIAndroidTheme
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -48,14 +46,14 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FileBrowserScreen() {
-    val context = LocalContext.current
-    val activity = context as? Activity
     val scope = rememberCoroutineScope()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
 
     var currentPath by remember { mutableStateOf("/media") }
     var history by remember { mutableStateOf(listOf<String>()) }
     var items by remember { mutableStateOf(emptyList<FileItem>()) }
+    var activeItem by remember { mutableStateOf<FileItem?>(null) }
+    var isPlayerVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
@@ -78,7 +76,7 @@ private fun FileBrowserScreen() {
         loadPath(currentPath)
     }
 
-    BackHandler(enabled = drawerState.isOpen || history.isNotEmpty()) {
+    BackHandler(enabled = !isPlayerVisible && (drawerState.isOpen || history.isNotEmpty())) {
         when {
             drawerState.isOpen -> scope.launch { drawerState.close() }
             history.isNotEmpty() -> {
@@ -86,8 +84,15 @@ private fun FileBrowserScreen() {
                 history = history.dropLast(1)
                 loadPath(prev)
             }
-            else -> activity?.finish()
         }
+    }
+
+    if (isPlayerVisible && activeItem != null) {
+        PlayerScreen(
+            item = activeItem!!,
+            onClose = { isPlayerVisible = false }
+        )
+        return
     }
 
     val colorScheme = MaterialTheme.colorScheme
@@ -236,7 +241,8 @@ private fun FileBrowserScreen() {
                                     history = history + currentPath
                                     loadPath(item.path)
                                 } else {
-                                    Toast.makeText(context, "Selected file: ${item.name}", Toast.LENGTH_SHORT).show()
+                                    activeItem = item
+                                    isPlayerVisible = true
                                 }
                             }
                         }

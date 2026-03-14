@@ -8,7 +8,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.opneai.android.R
 
-private val DmSans = FontFamily(
+val DmSans = FontFamily(
     Font(R.font.dm_sans_regular, FontWeight.Normal),
     Font(R.font.dm_sans_bold, FontWeight.Bold)
 )
@@ -17,16 +17,19 @@ val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = DmSans,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp
+        fontSize = 16.sp,
+        color = TextColor
     ),
     titleLarge = TextStyle(
         fontFamily = DmSans,
         fontWeight = FontWeight.Bold,
-        fontSize = 20.sp
+        fontSize = 20.sp,
+        color = TextColor
     ),
     labelLarge = TextStyle(
         fontFamily = DmSans,
         fontWeight = FontWeight.Bold,
-        fontSize = 14.sp
+        fontSize = 14.sp,
+        color = TextColor
     )
 )
