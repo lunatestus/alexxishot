@@ -15,9 +15,6 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ClosedCaption
-import androidx.compose.material.icons.filled.Headphones
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -37,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -51,6 +49,7 @@ import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.vibe.player.R
 import com.vibe.player.data.ApiClient
 import com.vibe.player.data.FileItem
 import com.vibe.player.ui.theme.*
@@ -346,7 +345,7 @@ fun PlayerScreen(
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         PlayerButton(
-                            icon = Icons.Filled.ClosedCaption,
+                            icon = painterResource(id = R.drawable.ic_caption),
                             onClick = { 
                                 lastInteraction = System.currentTimeMillis()
                                 showCaptionMenu = true
@@ -363,7 +362,7 @@ fun PlayerScreen(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         PlayerButton(
-                            icon = Icons.Filled.Headphones,
+                            icon = painterResource(id = R.drawable.ic_audio),
                             onClick = { 
                                 lastInteraction = System.currentTimeMillis()
                                 showAudioMenu = true
@@ -594,6 +593,62 @@ fun PlayerButton(
     ) {
         Icon(
             imageVector = icon,
+            contentDescription = null,
+            tint = if (isFocused) Color.Black else Color.White,
+            modifier = Modifier.size(if (isPrimary) 28.dp else 20.dp)
+        )
+    }
+}
+
+@Composable
+fun PlayerButton(
+    icon: androidx.compose.ui.graphics.painter.Painter,
+    onClick: () -> Unit,
+    isPrimary: Boolean = false,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    focusProps: (androidx.compose.ui.focus.FocusProperties.() -> Unit)? = null
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val size = if (isPrimary) 44.dp else 40.dp
+    val focusedScale = if (isPrimary) 1.0f else 1.1f
+    val scale by animateFloatAsState(targetValue = if (isFocused) focusedScale else 1f)
+
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .size(size)
+            .clip(CircleShape)
+            .focusProperties { focusProps?.invoke(this) }
+            .onFocusChanged {
+                if (isFocused != it.isFocused) {
+                    isFocused = it.isFocused
+                }
+            }
+            .focusable(enabled)
+            .onKeyEvent { keyEvent ->
+                if (!enabled) return@onKeyEvent false
+                if (keyEvent.nativeKeyEvent.action == KeyEvent.ACTION_DOWN) {
+                    when (keyEvent.nativeKeyEvent.keyCode) {
+                        KeyEvent.KEYCODE_DPAD_CENTER,
+                        KeyEvent.KEYCODE_ENTER,
+                        KeyEvent.KEYCODE_NUMPAD_ENTER,
+                        KeyEvent.KEYCODE_SPACE -> {
+                            onClick()
+                            true
+                        }
+                        else -> false
+                    }
+                } else {
+                    false
+                }
+            }
+            .clickable(enabled = enabled) { onClick() }
+            .background(if (isFocused) Color.White else Color.Transparent),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = icon,
             contentDescription = null,
             tint = if (isFocused) Color.Black else Color.White,
             modifier = Modifier.size(if (isPrimary) 28.dp else 20.dp)
