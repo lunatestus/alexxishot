@@ -15,7 +15,10 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +32,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -354,12 +358,36 @@ private fun FileBrowserScreen() {
 @Composable
 private fun FileRow(item: FileItem, onClick: () -> Unit) {
     val colorScheme = MaterialTheme.colorScheme
+    var isFocused by remember { mutableStateOf(false) }
+    val background by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.onSurface else colorScheme.surfaceVariant,
+        label = "file_row_bg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
+        label = "file_row_text"
+    )
+    val subTextColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant,
+        label = "file_row_subtext"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
+        label = "file_row_border"
+    )
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .onFocusChanged { isFocused = it.isFocused }
+            .focusable()
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ),
         shape = RoundedCornerShape(14.dp),
-        color = colorScheme.surfaceVariant,
+        color = background,
+        border = BorderStroke(1.dp, borderColor),
         tonalElevation = 2.dp,
         shadowElevation = 0.dp
     ) {
@@ -372,21 +400,21 @@ private fun FileRow(item: FileItem, onClick: () -> Unit) {
             Icon(
                 imageVector = if (item.type == "folder") Icons.Default.Folder else Icons.Default.Description,
                 contentDescription = null,
-                tint = colorScheme.onSurface
+                tint = textColor
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = colorScheme.onSurface,
+                    color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = if (item.type == "folder") "Folder" else "File",
                     style = MaterialTheme.typography.labelLarge,
-                    color = colorScheme.onSurfaceVariant
+                    color = subTextColor
                 )
             }
         }
