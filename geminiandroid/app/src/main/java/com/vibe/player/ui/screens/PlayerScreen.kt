@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -420,7 +421,10 @@ fun PlayerScreen(
                     color = TextColor,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Normal,
-                    fontFamily = DmSans
+                    fontFamily = DmSans,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -651,14 +655,14 @@ fun PlayerSeekBar(
                         if (seekJob == null) {
                             seekJob = scope.launch {
                                 // Wait briefly before treating as a long-press.
-                                delay(250)
+                                delay(150)
                                 while (true) {
                                     val elapsed = (System.currentTimeMillis() - seekStartTime).coerceAtLeast(0L)
                                     // Smooth acceleration: faster the longer the hold, capped.
-                                    val accelSteps = (elapsed / 300L).coerceAtMost(12L)
-                                    val baseVelocity = 30_000L // ms per second
-                                    val velocity = baseVelocity + accelSteps * 45_000L
-                                    val tickMs = 60L
+                                    val accelSteps = (elapsed / 200L).coerceAtMost(14L)
+                                    val baseVelocity = 120_000L // ms per second
+                                    val velocity = baseVelocity + accelSteps * 80_000L
+                                    val tickMs = 40L
                                     val step = (velocity * tickMs / 1000L) * seekDirection
                                     val next = (currentPosition + step).coerceAtLeast(0L)
                                     currentPosition = next.coerceAtMost(duration)
