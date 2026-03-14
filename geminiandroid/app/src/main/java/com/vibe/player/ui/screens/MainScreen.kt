@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusGroup
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
@@ -91,7 +92,8 @@ fun MainScreen() {
 
     // Focus Requesters
     val sidebarFocusRequester = remember { FocusRequester() }
-    val firstItemFocusRequester = remember { FocusRequester() }
+    val listFocusRequesters = remember(items.size) { List(items.size) { FocusRequester() } }
+    val gridFirstItemFocusRequester = remember { FocusRequester() }
 
     fun loadPath(path: String) {
         currentPath = path
@@ -114,10 +116,11 @@ fun MainScreen() {
         loadPath("/media")
     }
 
-    LaunchedEffect(isLoading, shouldRequestContentFocus) {
+    LaunchedEffect(isLoading, shouldRequestContentFocus, isListView, items.size) {
         if (!isLoading && !isSidebarFocused && items.isNotEmpty() && shouldRequestContentFocus) {
             kotlinx.coroutines.delay(100)
-            firstItemFocusRequester.requestFocus()
+            val firstRequester = if (isListView) listFocusRequesters.firstOrNull() else gridFirstItemFocusRequester
+            firstRequester?.requestFocus()
             shouldRequestContentFocus = false
         }
     }
@@ -190,21 +193,22 @@ fun MainScreen() {
                         Text("No files found", color = TextColor, fontSize = 18.sp, fontFamily = DmSans)
                     }
                 } else if (isListView) {
-                    LazyColumn(state = listState, verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+                    LazyColumn(
+                        state = listState,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxSize().focusGroup(),
+                        contentPadding = PaddingValues(bottom = 40.dp)
+                    ) {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             val isLastItem = index == items.lastIndex
                             val isFirstItem = index == 0
-                            val cardModifier = (if (isFirstItem) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
-                                .then(
-                                    if (isFirstItem || isLastItem) {
-                                        Modifier.focusProperties {
-                                            if (isFirstItem) up = FocusRequester.Cancel
-                                            if (isLastItem) down = FocusRequester.Cancel
-                                        }
-                                    } else {
-                                        Modifier
-                                    }
-                                )
+                            val focusRequester = listFocusRequesters.getOrNull(index)
+                            val cardModifier = Modifier
+                                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+                                .focusProperties {
+                                    up = if (isFirstItem) FocusRequester.Cancel else listFocusRequesters[index - 1]
+                                    down = if (isLastItem) FocusRequester.Cancel else listFocusRequesters[index + 1]
+                                }
                             MediaCard(
                                 item = item,
                                 index = index,
@@ -222,7 +226,7 @@ fun MainScreen() {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             val isFirstRow = topRowIndices.contains(index)
                             val isLastRow = bottomRowIndices.contains(index)
-                            val cardModifier = (if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier)
+                            val cardModifier = (if (index == 0) Modifier.focusRequester(gridFirstItemFocusRequester) else Modifier)
                                 .then(
                                     if (isFirstRow || isLastRow) {
                                         Modifier.focusProperties {
