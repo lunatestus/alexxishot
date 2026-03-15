@@ -15,8 +15,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.focusable
@@ -37,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,7 +78,6 @@ private fun FileBrowserScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
     var upgradeDownloadId by remember { mutableLongStateOf(-1L) }
-    var focusedIndex by remember { mutableIntStateOf(0) }
     val firstItemFocusRequester = remember { FocusRequester() }
 
     DisposableEffect(upgradeDownloadId) {
@@ -359,8 +355,7 @@ private fun FileBrowserScreen() {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             FileRow(
                                 item = item,
-                                focusRequester = if (index == 0) firstItemFocusRequester else null,
-                                onFocused = { focusedIndex = index }
+                                focusRequester = if (index == 0) firstItemFocusRequester else null
                             ) {
                                 if (item.type == "folder") {
                                     history = history + currentPath
@@ -382,48 +377,27 @@ private fun FileBrowserScreen() {
 private fun FileRow(
     item: FileItem,
     focusRequester: FocusRequester? = null,
-    onFocused: () -> Unit,
     onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var isFocused by remember { mutableStateOf(false) }
-    val background by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.onSurface else colorScheme.surfaceVariant,
-        label = "file_row_bg"
-    )
-    val textColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
-        label = "file_row_text"
-    )
-    val subTextColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant,
-        label = "file_row_subtext"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
-        label = "file_row_border"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.02f else 1f,
-        label = "file_row_scale"
-    )
+    val background = if (isFocused) colorScheme.onSurface else colorScheme.surfaceVariant
+    val textColor = if (isFocused) colorScheme.surface else colorScheme.onSurface
+    val subTextColor = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant
+    val borderColor = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged {
                 isFocused = it.isFocused
-                if (it.isFocused) {
-                    onFocused()
-                }
             }
             .focusable()
             .clickable(
                 onClick = onClick,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            )
-            .graphicsLayer { scaleX = scale; scaleY = scale },
+            ),
         shape = RoundedCornerShape(8.dp),
         color = background,
         border = BorderStroke(1.dp, borderColor),
@@ -467,28 +441,14 @@ private fun SidebarButton(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var isFocused by remember { mutableStateOf(false) }
-    val background by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
-        label = "sidebar_bg"
-    )
-    val textColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
-        label = "sidebar_text"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isFocused) androidx.compose.ui.graphics.Color.Transparent else colorScheme.onSurface.copy(alpha = 0.25f),
-        label = "sidebar_border"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (isFocused) 1.02f else 1f,
-        label = "sidebar_scale"
-    )
+    val background = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent
+    val textColor = if (isFocused) colorScheme.surface else colorScheme.onSurface
+    val borderColor = if (isFocused) androidx.compose.ui.graphics.Color.Transparent else colorScheme.onSurface.copy(alpha = 0.25f)
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
             .onFocusChanged { isFocused = it.isFocused }
             .focusable()
             .clickable(
