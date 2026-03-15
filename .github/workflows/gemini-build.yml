@@ -23,15 +23,10 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
-      with:
-        gradle-version: "8.6"
-
     - name: Build with Gradle
       run: |
         cd geminiandroid
-        gradle :app:assembleDebug
+        ./gradlew :app:assembleDebug
 
     - name: Create Continuous Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/gemini'
