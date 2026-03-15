@@ -39,6 +39,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.tv.material3.ListItem
+import androidx.tv.material3.ListItemDefaults
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,6 +84,7 @@ private fun FileBrowserScreen() {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loadJob by remember { mutableStateOf<Job?>(null) }
     var upgradeDownloadId by remember { mutableLongStateOf(-1L) }
+    var focusedIndex by remember { mutableIntStateOf(0) }
     val firstItemFocusRequester = remember { FocusRequester() }
 
     DisposableEffect(upgradeDownloadId) {
@@ -359,7 +362,9 @@ private fun FileBrowserScreen() {
                         itemsIndexed(items, key = { _, item -> item.path }) { index, item ->
                             FileRow(
                                 item = item,
-                                focusRequester = if (index == 0) firstItemFocusRequester else null
+                                focusRequester = if (index == 0) firstItemFocusRequester else null,
+                                isSelected = focusedIndex == index,
+                                onFocused = { focusedIndex = index }
                             ) {
                                 if (item.type == "folder") {
                                     history = history + currentPath
@@ -381,86 +386,62 @@ private fun FileBrowserScreen() {
 private fun FileRow(
     item: FileItem,
     focusRequester: FocusRequester? = null,
+    isSelected: Boolean,
+    onFocused: () -> Unit,
     onClick: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var isFocused by remember { mutableStateOf(false) }
-    val background by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.onSurface else colorScheme.surfaceVariant,
-        animationSpec = tween(120),
-        label = "file_row_bg"
-    )
-    val textColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
-        animationSpec = tween(120),
-        label = "file_row_text"
-    )
-    val subTextColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant,
-        animationSpec = tween(120),
-        label = "file_row_subtext"
-    )
-    val borderColor by animateColorAsState(
-        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
-        animationSpec = tween(120),
-        label = "file_row_border"
-    )
     val scale by animateFloatAsState(
         targetValue = if (isFocused) 1.02f else 1f,
         animationSpec = tween(120),
         label = "file_row_scale"
     )
-    Surface(
+
+    val colors = ListItemDefaults.colors(
+        focusedContainerColor = colorScheme.onSurface,
+        focusedContentColor = colorScheme.surface,
+        containerColor = colorScheme.surfaceVariant,
+        contentColor = colorScheme.onSurface
+    )
+
+    ListItem(
         modifier = Modifier
             .fillMaxWidth()
+            .height(64.dp)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .onFocusChanged {
-                isFocused = it.isFocused
-            }
-            .focusable()
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            )
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+            }
+            .onFocusChanged {
+                isFocused = it.isFocused
+                if (it.isFocused) onFocused()
             },
-        shape = RoundedCornerShape(8.dp),
-        color = background,
-        border = BorderStroke(1.dp, borderColor),
-        tonalElevation = 2.dp,
-        shadowElevation = 0.dp
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        selected = isSelected,
+        onClick = onClick,
+        colors = colors,
+        leadingContent = {
             Icon(
                 imageVector = if (item.type == "folder") Icons.Default.Folder else Icons.Default.Description,
-                contentDescription = null,
-                tint = textColor
+                contentDescription = null
             )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = textColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = if (item.type == "folder") "Folder" else "File",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = subTextColor
-                )
-            }
+        },
+        headlineContent = {
+            Text(
+                text = item.name,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        },
+        supportingContent = {
+            Text(
+                text = if (item.type == "folder") "Folder" else "File",
+                color = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
         }
-    }
+    )
 }
 
 @Composable
