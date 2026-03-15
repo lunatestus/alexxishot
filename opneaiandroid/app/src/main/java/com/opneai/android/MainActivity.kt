@@ -13,6 +13,9 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -381,10 +385,31 @@ private fun FileRow(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var isFocused by remember { mutableStateOf(false) }
-    val background = if (isFocused) colorScheme.onSurface else colorScheme.surfaceVariant
-    val textColor = if (isFocused) colorScheme.surface else colorScheme.onSurface
-    val subTextColor = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant
-    val borderColor = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent
+    val background by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.onSurface else colorScheme.surfaceVariant,
+        animationSpec = tween(120),
+        label = "file_row_bg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
+        animationSpec = tween(120),
+        label = "file_row_text"
+    )
+    val subTextColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.surface.copy(alpha = 0.7f) else colorScheme.onSurfaceVariant,
+        animationSpec = tween(120),
+        label = "file_row_subtext"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
+        animationSpec = tween(120),
+        label = "file_row_border"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.02f else 1f,
+        animationSpec = tween(120),
+        label = "file_row_scale"
+    )
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,7 +422,11 @@ private fun FileRow(
                 onClick = onClick,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            ),
+            )
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
         shape = RoundedCornerShape(8.dp),
         color = background,
         border = BorderStroke(1.dp, borderColor),
@@ -441,14 +470,35 @@ private fun SidebarButton(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var isFocused by remember { mutableStateOf(false) }
-    val background = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent
-    val textColor = if (isFocused) colorScheme.surface else colorScheme.onSurface
-    val borderColor = if (isFocused) androidx.compose.ui.graphics.Color.Transparent else colorScheme.onSurface.copy(alpha = 0.25f)
+    val background by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.onSurface else androidx.compose.ui.graphics.Color.Transparent,
+        animationSpec = tween(120),
+        label = "sidebar_bg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (isFocused) colorScheme.surface else colorScheme.onSurface,
+        animationSpec = tween(120),
+        label = "sidebar_text"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (isFocused) androidx.compose.ui.graphics.Color.Transparent else colorScheme.onSurface.copy(alpha = 0.25f),
+        animationSpec = tween(120),
+        label = "sidebar_border"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isFocused) 1.02f else 1f,
+        animationSpec = tween(120),
+        label = "sidebar_scale"
+    )
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(40.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .onFocusChanged { isFocused = it.isFocused }
             .focusable()
             .clickable(
